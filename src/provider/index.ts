@@ -77,6 +77,8 @@ export function checkProviderUrl(url: string): boolean {
 }
 
 export function isProviderAllowed(id: string): boolean {
+    var managedTv = (window as any).__starlinkTv;
+    if (managedTv) return id === "m3u" && managedTv.admitted();
     return (
         !isPlayDistribution() ||
         id === "m3u" ||

@@ -1,0 +1,29 @@
+name: STARLINK TV isolated candidate
+on:
+  workflow_dispatch:
+  push:
+    branches: ['starlink/tv-generico-m81']
+permissions:
+  contents: read
+jobs:
+  candidate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run test:starlink:tv
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: node tests/test_starlink_tv_browser.cjs
+      - run: node scripts/stage-starlink-tv.cjs samsung
+      - run: node scripts/stage-starlink-tv.cjs lg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: STARLINK-TV-unsigned-candidates
+          path: build/starlink-tv/
+          retention-days: 14

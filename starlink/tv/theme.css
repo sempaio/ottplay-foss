@@ -1,0 +1,16 @@
+/* STARLINK shell; the upstream player retains its TV input and media adapters. */
+#starlink-connect { position:fixed; inset:0; z-index:2147483000; overflow:auto; background:#090d18; color:#f6f7fb; font:24px Arial,sans-serif; display:flex; align-items:center; justify-content:center; }
+#starlink-connect[hidden], #starlink-connect [hidden], #starlink-account[hidden] { display:none !important; }
+.starlink-card { box-sizing:border-box; width:720px; max-width:94%; padding:48px; border:1px solid #30394e; border-radius:24px; background:#141a29; }
+.starlink-brand { color:#10d0e4; font-size:40px; font-weight:bold; letter-spacing:2px; }
+.starlink-brand span { color:#ee31bc; }
+.starlink-logo { width:100px; height:100px; float:right; border-radius:16px; }
+.starlink-card h1 { font-size:32px; margin:24px 0; }
+#starlink-status { min-height:64px; line-height:1.4; color:#ced4e4; }
+#starlink-form label { display:block; margin:16px 0 8px; }
+#starlink-form input { box-sizing:border-box; display:block; width:100%; padding:14px; border:2px solid #515c74; border-radius:8px; color:#fff; background:#090d18; font-size:24px; }
+#starlink-connect button, #starlink-account { padding:14px 20px; margin:12px 8px 0 0; border:2px solid transparent; border-radius:10px; background:#263149; color:white; font-size:22px; cursor:pointer; }
+#starlink-form button { background:#10d0e4; color:#09121e; font-weight:bold; }
+#starlink-connect input:focus, #starlink-connect button:focus, #starlink-account:focus { outline:4px solid #ee31bc; outline-offset:3px; }
+.starlink-note { color:#9aa7c1; font-size:18px; line-height:1.4; }
+#starlink-account { position:fixed; top:16px; right:24px; z-index:2147482000; opacity:.9; font-size:18px; }

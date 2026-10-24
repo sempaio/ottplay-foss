@@ -7,6 +7,9 @@
 
 // Keep in sync with the pre-bundle device detector in index.html.
 export function detectDevice(): string {
+    var managed = (window as any).STARLINK_TV_CONFIG;
+    if (managed && managed.platform === "samsung") return "samsung/tizen";
+    if (managed && managed.platform === "lg") return "lg/webos";
     var path = window.location.pathname;
     var m = path.match(/^\/f\/((?:lg|samsung)\/[^\/]+|[^\/]+)(?:\/|$)/);
     if (m) return m[1].replace(/\/+$/, "");
@@ -61,7 +64,7 @@ export function detectDevice(): string {
  * adapter and calls startPlayer(). detectDevice() always returns a nonempty route.
  */
 
-export let host = window.location.origin || "http://localhost:8080";
+export let host = (window as any).__starlinkTvRoot || window.location.origin || "http://localhost:8080";
 export let __cv = (window as any).__cv || "local";
 export let __av = (window as any).__av || "local";
 export let dnt = false;
