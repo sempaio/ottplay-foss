@@ -35,6 +35,7 @@ interface ProviderDriverProfile {
     title: string;
 }
 interface ProviderDriverPorts {
+    account?: any;
     catalogProgress?(scanned: number, items: number, total?: number): void;
     channelCatalog?(
         rows: any[],
@@ -802,6 +803,8 @@ function createXtreamDriver(
     var operations = createCredentialOperations(ports, active);
     var transport = createDriverTransport(ports, owner, active);
     function credentials(): ProviderCredentials {
+        var managed = ports.account && ports.account.accountSource();
+        if (managed) return managed;
         var value: any;
         try {
             value = JSON.parse(ports.storage.get("xtream_data") || "null");
@@ -911,33 +914,43 @@ function createXtreamDriver(
                     return;
                 }
                 var source = client(config);
-                transport.send(
-                    scope,
-                    {
-                        dataType: "json",
-                        timeout: 15000,
-                        type: "GET",
-                        url: source.request(),
-                    },
-                    function (response) {
-                        var error = source.accept(response)
-                            ? "catalog"
-                            : undefined;
-                        var next = error
-                            ? emptyDriverCatalog()
-                            : ports.channelCatalog!(
-                                  source.channelCatalog(),
-                                  ports.hash,
-                                  "xtream"
-                              );
-                        if (!scope.active()) return;
-                        catalog = next;
-                        callback(driverCatalogSnapshot(catalog), error);
-                    },
-                    function () {
-                        callback(driverCatalogSnapshot(catalog), "network");
-                    }
-                );
+                function accept(response: any) {
+                    var error = source.accept(response) ? "catalog" : undefined;
+                    var next = error
+                        ? emptyDriverCatalog()
+                        : ports.channelCatalog!(
+                              source.channelCatalog(),
+                              ports.hash,
+                              "xtream"
+                          );
+                    if (!scope.active()) return;
+                    catalog = next;
+                    callback(driverCatalogSnapshot(catalog), error);
+                }
+                function failed() {
+                    callback(driverCatalogSnapshot(catalog), "network");
+                }
+                if (ports.account) {
+                    ports.account.loadCatalog(
+                        function (options: any, done: any, fail: any) {
+                            transport.send(scope, options, done, fail);
+                        },
+                        accept,
+                        failed
+                    );
+                } else {
+                    transport.send(
+                        scope,
+                        {
+                            dataType: "json",
+                            timeout: 15000,
+                            type: "GET",
+                            url: source.request(),
+                        },
+                        accept,
+                        failed
+                    );
+                }
             });
         },
         logo: function (id) {
@@ -2044,6 +2057,11 @@ function mountProviderDriver(
     var driver = providerDriverRegistry.create(
         id,
         {
+            account:
+                host.STARLINK_TV_CONFIG &&
+                host.STARLINK_TV_CONFIG.mode === "account"
+                    ? host.__starlinkTv
+                    : null,
             catalogProgress: function (scanned, items, total) {
                 var doc = host.document;
                 var panel = doc && doc.getElementById("dialogbox");

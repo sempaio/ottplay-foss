@@ -78,7 +78,13 @@ export function checkProviderUrl(url: string): boolean {
 
 export function isProviderAllowed(id: string): boolean {
     var managedTv = (window as any).__starlinkTv;
-    if (managedTv) return id === "m3u" && managedTv.admitted();
+    if (managedTv)
+        return (
+            id ===
+                ((window as any).STARLINK_TV_CONFIG.mode === "account"
+                    ? "xtream"
+                    : "m3u") && managedTv.admitted()
+        );
     return (
         !isPlayDistribution() ||
         id === "m3u" ||

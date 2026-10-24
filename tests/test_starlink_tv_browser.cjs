@@ -6,8 +6,9 @@ const http = require("node:http");
 const { chromium } = require("playwright");
 const { stage } = require("../scripts/stage-starlink-tv.cjs");
 
-async function run(platform) {
-    const directory = stage(platform, "https://panel.invalid");
+async function run(platform, mode = "managed") {
+    const personal = mode === "account";
+    const directory = stage(platform, "https://panel.invalid", mode);
     const server = http.createServer((request, response) => {
         const file = path.resolve(
             directory,
@@ -70,6 +71,14 @@ async function run(platform) {
                 await route.fulfill({ headers: cors, status: 204 });
                 return;
             }
+            if (
+                personal &&
+                url.origin === "https://panel.invalid" &&
+                /^\/live\//.test(url.pathname)
+            ) {
+                await route.abort();
+                return;
+            }
             if (url.origin === "https://panel.invalid") {
                 if (url.pathname === "/app/auth/login") {
                     const body = request.postDataJSON();
@@ -88,6 +97,79 @@ async function run(platform) {
                             ).toISOString(),
                             session_token: "fixture-session-token-at-least-20",
                         },
+                    });
+                    return;
+                }
+                if (
+                    personal &&
+                    url.pathname === "/app/auth/playlist-revision"
+                ) {
+                    await route.fulfill({
+                        headers: cors,
+                        json: { poll_after_seconds: 120, revision: "original" },
+                    });
+                    return;
+                }
+                if (personal && url.pathname === "/player_api.php") {
+                    assert.equal(
+                        url.searchParams.get("username"),
+                        "fixture-user"
+                    );
+                    assert.equal(
+                        url.searchParams.get("password"),
+                        "fixture-pass"
+                    );
+                    const action = url.searchParams.get("action");
+                    const responses = {
+                        get_live_categories: [
+                            {
+                                category_id: "10",
+                                category_name: "Original M81",
+                            },
+                        ],
+                        get_live_streams: [
+                            {
+                                category_id: "10",
+                                name: "Original live",
+                                stream_id: 42,
+                                stream_type: "live",
+                            },
+                        ],
+                        get_series: [{ name: "Original series", series_id: 8 }],
+                        get_series_categories: [],
+                        get_series_info: {
+                            episodes: {
+                                1: [
+                                    {
+                                        container_extension: "mp4",
+                                        episode_num: 1,
+                                        id: "81",
+                                        season: 1,
+                                        title: "Original episode",
+                                    },
+                                ],
+                            },
+                        },
+                        get_short_epg: { epg_listings: [] },
+                        get_vod_categories: [],
+                        get_vod_streams: [
+                            {
+                                container_extension: "mp4",
+                                name: "Original movie",
+                                stream_id: 43,
+                            },
+                        ],
+                    };
+                    assert(
+                        action === null || action in responses,
+                        "Unexpected Xtream action: " + action
+                    );
+                    await route.fulfill({
+                        headers: cors,
+                        json:
+                            action === null
+                                ? { user_info: { auth: 1, status: "Active" } }
+                                : responses[action],
                     });
                     return;
                 }
@@ -133,30 +215,32 @@ async function run(platform) {
         await page.locator("#starlink-login").fill("fixture-user");
         await page.locator("#starlink-password").fill("fixture-pass");
         await page.locator("#starlink-form button").click();
-        await page
-            .getByText("Aguardando configuração do catálogo pelo painel.", {
-                exact: true,
-            })
-            .waitFor();
-        assert.equal(
-            await page.evaluate(() => window.__starlinkTv.admitted()),
-            false
-        );
-        const screenshot = path.join(
-            directory,
-            "STARLINK-" + platform + "-waiting.png"
-        );
-        await page.screenshot({ path: screenshot });
-        configured = true;
-        revision = "assigned";
-        await page.locator("#starlink-retry").click();
+        if (!personal) {
+            await page
+                .getByText("Aguardando configuração do catálogo pelo painel.", {
+                    exact: true,
+                })
+                .waitFor();
+            assert.equal(
+                await page.evaluate(() => window.__starlinkTv.admitted()),
+                false
+            );
+            const screenshot = path.join(
+                directory,
+                "STARLINK-" + platform + "-waiting.png"
+            );
+            await page.screenshot({ path: screenshot });
+            configured = true;
+            revision = "assigned";
+            await page.locator("#starlink-retry").click();
+        }
         await page.waitForFunction(() => window.__starlinkTv.admitted());
         await page.waitForFunction(() => window.commandChannelsReady === true, {
             timeout: 20000,
         });
         assert.equal(
             await page.evaluate(() => window.__ottActiveProviderDriver.id),
-            "m3u"
+            personal ? "xtream" : "m3u"
         );
         assert.equal(
             await page.evaluate(() => window.isProviderAllowed("demo")),
@@ -164,8 +248,44 @@ async function run(platform) {
         );
         assert.equal(
             await page.evaluate(() => window.isProviderAllowed("xtream")),
-            false
+            personal
         );
+        if (personal) {
+            assert.equal(sourceRequests, 0);
+            const media = await page.evaluate(async () => {
+                function load(target) {
+                    return new Promise((resolve) =>
+                        window.getMediaArray(target, () =>
+                            resolve(window.mediaRecords)
+                        )
+                    );
+                }
+                const movies = await load({ kind: "vod" });
+                const series = await load({ kind: "series" });
+                const episodes = await load(series[0].playlist_url);
+                return {
+                    episode: episodes[0].stream_url,
+                    movie: movies[0].stream_url,
+                };
+            });
+            assert(
+                media.movie.endsWith("/movie/fixture-user/fixture-pass/43.mp4")
+            );
+            assert(
+                media.episode.endsWith(
+                    "/series/fixture-user/fixture-pass/81.mp4"
+                )
+            );
+
+            assert.equal(
+                await page.evaluate(
+                    () =>
+                        JSON.stringify(localStorage).includes("fixture-pass") ||
+                        JSON.stringify(sessionStorage).includes("fixture-pass")
+                ),
+                false
+            );
+        }
         assert.equal(
             await page.evaluate(() => window.ott_device),
             platform === "lg" ? "lg/webos" : "samsung/tizen"
@@ -202,17 +322,21 @@ async function run(platform) {
         console.log(
             "PASS built " +
                 platform +
-                ": empty login → waiting → assigned M3U → logout; " +
-                screenshot
+                (personal
+                    ? ": login → original Xtream live/movie/episodes → logout; "
+                    : ": empty login → waiting → assigned M3U → logout; ") +
+                directory
         );
     } finally {
         if (browser) await browser.close();
+        server.closeAllConnections();
         await new Promise((resolve) => server.close(resolve));
     }
 }
 (async () => {
     await run("samsung");
     await run("lg");
+    await run("samsung", "account");
 })().catch((error) => {
     console.error(error);
     process.exitCode = 1;

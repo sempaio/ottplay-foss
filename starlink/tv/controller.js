@@ -35,7 +35,8 @@
             timer = null,
             ready = false,
             revision = "",
-            session = null;
+            session = null,
+            account = null;
         function cancel() {
             generation += 1;
             if (timer !== null) ports.clearTimer(timer);
@@ -66,6 +67,7 @@
         function logout() {
             cancel();
             session = null;
+            account = null;
             revision = "";
             hold("login");
             try {
@@ -96,7 +98,9 @@
             var owner = generation;
             pending = ports.request(
                 "GET",
-                "/api/v1/tv-m3u/source?platform=" + config.platform,
+                config.mode === "account"
+                    ? "/app/auth/playlist-revision"
+                    : "/api/v1/tv-m3u/source?platform=" + config.platform,
                 null,
                 {
                     Authorization: "Bearer " + session.token,
@@ -120,7 +124,22 @@
                     }
                     var data;
                     try {
-                        data = assignment(value, config.platform);
+                        if (config.mode === "account") {
+                            if (
+                                !account ||
+                                !value ||
+                                typeof value.revision !== "string" ||
+                                !value.revision
+                            )
+                                throw new Error("invalid_account_revision");
+                            data = {
+                                configured: true,
+                                refresh_seconds:
+                                    value.poll_after_seconds || 120,
+                                revision: value.revision,
+                                source_url: config.apiBase,
+                            };
+                        } else data = assignment(value, config.platform);
                     } catch (_) {
                         hold("invalid_assignment");
                         schedule(30);
@@ -159,6 +178,7 @@
             cancel();
             hold("connecting");
             session = null;
+            account = null;
             revision = "";
             try {
                 ports.save(null);
@@ -218,6 +238,12 @@
                         return;
                     }
                     session = next;
+                    if (config.mode === "account")
+                        account = {
+                            password: password,
+                            server: config.apiBase,
+                            username: username,
+                        };
                     revision = "";
                     refresh();
                 }
@@ -230,12 +256,21 @@
                 hold("storage_error");
                 return;
             }
-            if (validSession(session)) {
+            if (validSession(session) && config.mode !== "account") {
                 hold("connecting");
                 refresh();
             } else logout();
         }
         return {
+            accountSource: function () {
+                return ready && validSession(session) && account
+                    ? {
+                          password: account.password,
+                          server: account.server,
+                          username: account.username,
+                      }
+                    : null;
+            },
             admitted: function () {
                 return ready && validSession(session);
             },

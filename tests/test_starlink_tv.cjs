@@ -13,7 +13,7 @@ const saved = {
     expires: future,
     token: "fixture-token-at-least-20-characters",
 };
-function rig(session = null) {
+function rig(session = null, mode) {
     let stored = session,
         now = Date.parse("2026-10-24T00:00:00Z"),
         timer = null;
@@ -50,7 +50,9 @@ function rig(session = null) {
         stop: () => stops.push(true),
     };
     const owner = create(ports, {
+        apiBase: "https://panel.invalid",
         deviceId: "starlink-tv-samsung:fixture",
+        mode,
         platform: "samsung",
     });
     const data = (revision = "r1", configured = true) => ({
@@ -308,4 +310,37 @@ test("ES5 bootstrap uses branded empty shell; password never persists", (t) => {
     );
     w.dispatchEvent(new w.Event("beforeunload"));
     dom.window.close();
+});
+
+test("personal catalog uses account revision and keeps credentials only in memory", () => {
+    const r = rig(null, "account");
+    r.owner.start();
+    r.owner.login("fixture-user", "fixture-pass");
+    r.requests
+        .at(-1)
+        .done(200, {
+            authorized: true,
+            expires_at: future,
+            session_token: saved.token,
+        });
+    assert.equal(r.requests.at(-1).path, "/app/auth/playlist-revision");
+    assert.equal(r.owner.accountSource(), null);
+    r.requests
+        .at(-1)
+        .done(200, { poll_after_seconds: 120, revision: "original" });
+    assert.equal(r.owner.accountSource().username, "fixture-user");
+    assert.equal(r.owner.accountSource().password, "fixture-pass");
+    assert.equal(JSON.stringify(r.stored()).includes("fixture-pass"), false);
+    assert.equal(r.applied.length, 1);
+    r.owner.logout();
+    assert.equal(r.owner.accountSource(), null);
+    assert.equal(r.owner.admitted(), false);
+    assert.equal(r.stored(), null);
+});
+test("personal restart requires login rather than persisting Xtream credentials", () => {
+    const r = rig(saved, "account");
+    r.owner.start();
+    assert.equal(r.states.at(-1), "login");
+    assert.equal(r.requests.length, 0);
+    assert.equal(r.owner.accountSource(), null);
 });

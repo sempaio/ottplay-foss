@@ -5,7 +5,11 @@ const path = require("node:path");
 const crypto = require("node:crypto");
 const { execFileSync } = require("node:child_process");
 const root = path.resolve(__dirname, "..");
-function stage(platform, apiBase) {
+function stage(platform, apiBase, mode = "managed") {
+    if (!["managed", "account"].includes(mode))
+        throw new Error("Invalid catalog mode");
+    const personal = mode === "account";
+    const providerFile = personal ? "provider-xtream.js" : "provider-m3u.js";
     if (!["samsung", "lg"].includes(platform))
         throw new Error("Choose samsung or lg");
     const api = new URL(apiBase);
@@ -21,7 +25,7 @@ function stage(platform, apiBase) {
             "Use an HTTPS API origin without credentials, path, query or fragment"
         );
     const source = path.join(root, "dist");
-    for (const file of ["index.html", "player.js", "provider-m3u.js"])
+    for (const file of ["index.html", "player.js", providerFile])
         if (!fs.existsSync(path.join(source, file)))
             throw new Error("Run npm run build first: missing " + file);
     // New output each time. Never overwrite a previous candidate or official package.
@@ -37,8 +41,7 @@ function stage(platform, apiBase) {
             name === "offline-worker.js"
         )
             continue;
-        if (/^provider-.*\.js$/.test(name) && name !== "provider-m3u.js")
-            continue;
+        if (/^provider-.*\.js$/.test(name) && name !== providerFile) continue;
         const absolute = path.join(source, name);
         if (fs.lstatSync(absolute).isSymbolicLink())
             throw new Error("Unexpected build symlink");
@@ -62,8 +65,9 @@ function stage(platform, apiBase) {
     const config = {
         apiBase: api.origin,
         contentBundled: false,
+        mode,
         platform,
-        version: "0.1.0-preview",
+        version: personal ? "0.1.1-personal-preview" : "0.1.0-preview",
     };
     const configScript =
         "window.STARLINK_TV_CONFIG=" + JSON.stringify(config) + ";\n";
@@ -110,14 +114,16 @@ function stage(platform, apiBase) {
                         "Player sem conteúdo pré-instalado. Catálogo atribuído remotamente após login.",
                     disableBackHistoryAPI: true,
                     icon: "icon.png",
-                    id: "com.starlink.iptv.tv.preview",
+                    id: personal
+                        ? "com.starlink.iptv.tv.personal.preview"
+                        : "com.starlink.iptv.tv.preview",
                     main: "index.html",
                     requiredACG: [],
                     resolution: "1920x1080",
                     title: "STARLINK IPTV Prévia",
                     type: "web",
                     vendor: "STARLINK",
-                    version: "0.1.0",
+                    version: personal ? "0.1.1" : "0.1.0",
                 },
                 null,
                 2
@@ -126,7 +132,8 @@ function stage(platform, apiBase) {
     } else {
         fs.writeFileSync(
             path.join(out, "config.xml"),
-            '<?xml version="1.0" encoding="UTF-8"?>\n' +
+            (
+                '<?xml version="1.0" encoding="UTF-8"?>\n' +
                 '<widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets" id="https://starlink.local/tv/preview" version="0.1.0" viewmodes="maximized">\n' +
                 '<tizen:application id="STLTVP0010.StarlinkTV" package="STLTVP0010" required_version="5.5"/>\n' +
                 '<content src="index.html"/><name>STARLINK IPTV Prévia</name><icon src="icon.png"/>\n' +
@@ -135,6 +142,17 @@ function stage(platform, apiBase) {
                 '<tizen:setting screen-orientation="landscape" context-menu="disable" background-support="disable" hwkey-event="enable"/>\n' +
                 '<access origin="*" subdomains="true"/>\n' +
                 "<tizen:content-security-policy>default-src 'self'; script-src 'self' 'unsafe-inline' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: http: https:; connect-src http: https:; media-src http: https: blob:; worker-src 'self' blob:; object-src 'self'; frame-src 'none'</tizen:content-security-policy>\n</widget>\n"
+            )
+                .replace(/STLTVP0010/g, personal ? "STLTVA0010" : "STLTVP0010")
+                .replace(/0\.1\.0/g, personal ? "0.1.1" : "0.1.0")
+                .replace(
+                    /STARLINK IPTV Prévia/g,
+                    personal ? "STARLINK Pessoal" : "STARLINK IPTV Prévia"
+                )
+                .replace(
+                    /tv\/preview/g,
+                    personal ? "tv/personal-preview" : "tv/preview"
+                )
         );
     }
     for (const name of ["LICENSE", "THIRD-PARTY-NOTICES.md"])
@@ -183,7 +201,8 @@ if (require.main === module) {
         console.log(
             stage(
                 process.argv[2],
-                process.argv[3] || "https://panel.taila5c5c2.ts.net"
+                process.argv[3] || "https://panel.taila5c5c2.ts.net",
+                process.argv[4] || "managed"
             )
         );
     } catch (error) {

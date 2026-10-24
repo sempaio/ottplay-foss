@@ -125,17 +125,19 @@
         };
     }
     function apply(url) {
-        w.stbSetItem(
-            "m3um3uArr",
-            JSON.stringify({
-                active: 0,
-                M3Us: [{ name: "STARLINK", rechours: 0, www: url }],
-            })
-        );
-        w.stbSetItem("ottplayprov", "m3u");
+        var provider = config.mode === "account" ? "xtream" : "m3u";
+        if (provider === "m3u")
+            w.stbSetItem(
+                "m3um3uArr",
+                JSON.stringify({
+                    active: 0,
+                    M3Us: [{ name: "STARLINK", rechours: 0, www: url }],
+                })
+            );
+        w.stbSetItem("ottplayprov", provider);
         w.stbSetItem("noSelProv", "1");
         w.stbSetItem("noProvParam", "1");
-        if (started) w.loadProv("m3u");
+        if (started) w.loadProv(provider);
         else {
             started = true;
             resume();
@@ -236,6 +238,9 @@
         );
     }
     w.__starlinkTv = {
+        accountSource: function () {
+            return controller ? controller.accountSource() : null;
+        },
         admitted: function () {
             return controller && controller.admitted();
         },
@@ -274,12 +279,56 @@
                         state: state,
                         stop: stop,
                     },
-                    { deviceId: deviceId(), platform: config.platform }
+                    {
+                        apiBase: config.apiBase,
+                        deviceId: deviceId(),
+                        mode: config.mode,
+                        platform: config.platform,
+                    }
                 );
                 controller.start();
             } catch (_) {
                 state("storage_error");
             }
+        },
+        // Transport belongs to the provider lifetime: logout or reload aborts
+        // both requests and ignores their late responses.
+        loadCatalog: function (send, done, fail) {
+            var account = controller && controller.accountSource();
+            if (!account) {
+                fail();
+                return;
+            }
+            var base =
+                account.server.replace(/\/$/, "") +
+                "/player_api.php?username=" +
+                encodeURIComponent(account.username) +
+                "&password=" +
+                encodeURIComponent(account.password) +
+                "&action=";
+            function request(action, accept) {
+                send(
+                    {
+                        dataType: "json",
+                        timeout: 15000,
+                        type: "GET",
+                        url: base + action,
+                    },
+                    function (value) {
+                        if (!Array.isArray(value)) {
+                            fail();
+                            return;
+                        }
+                        accept(value);
+                    },
+                    fail
+                );
+            }
+            request("get_live_categories", function (categories) {
+                request("get_live_streams", function (streams) {
+                    done({ categories: categories, live_streams: streams });
+                });
+            });
         },
     };
     w.addEventListener("beforeunload", function () {
