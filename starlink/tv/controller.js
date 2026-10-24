@@ -45,8 +45,17 @@
         if (status === 200) return "response_error";
         return "connection_error";
     }
+    function serverOrigin(value) {
+        if (typeof value !== "string") return "";
+        var origin = value.replace(/^\s+|\s+$/g, "").replace(/\/+$/, "");
+        return validSource(origin) && /^https?:\/\/[^/?#]+$/i.test(origin)
+            ? origin
+            : "";
+    }
     function create(ports, config) {
-        var generation = 0,
+        var accountMode = config.mode === "account" || config.mode === "open",
+            sourceBase = config.apiBase || "",
+            generation = 0,
             pending = null,
             timer = null,
             ready = false,
@@ -64,7 +73,7 @@
         function validSession(value) {
             return (
                 value &&
-                (config.mode === "account"
+                (accountMode
                     ? !!account
                     : typeof value.token === "string" &&
                       value.token.length >= 20 &&
@@ -118,14 +127,14 @@
             var owner = generation;
             pending = ports.request(
                 "GET",
-                config.mode === "account"
+                accountMode
                     ? "/player_api.php?username=" +
                           encodeURIComponent(account.username) +
                           "&password=" +
                           encodeURIComponent(account.password)
                     : "/api/v1/tv-m3u/source?platform=" + config.platform,
                 null,
-                config.mode === "account"
+                accountMode
                     ? {}
                     : {
                           Authorization: "Bearer " + session.token,
@@ -136,8 +145,7 @@
                     pending = null;
                     if (status === 401 || status === 403) {
                         logout();
-                        if (config.mode === "account")
-                            hold(loginFailure(status, value));
+                        if (accountMode) hold(loginFailure(status, value));
                         return;
                     }
                     if (!validSession(session)) {
@@ -146,7 +154,7 @@
                     }
                     if (status !== 200) {
                         hold(
-                            config.mode === "account"
+                            accountMode
                                 ? loginFailure(status, value)
                                 : "connection_error"
                         );
@@ -155,7 +163,7 @@
                     }
                     var data;
                     try {
-                        if (config.mode === "account") {
+                        if (accountMode) {
                             var user = value && value.user_info;
                             if (
                                 !user ||
@@ -194,7 +202,7 @@
                                 configured: true,
                                 refresh_seconds: 120,
                                 revision: "xtream:" + catalogCheck,
-                                source_url: config.apiBase,
+                                source_url: sourceBase,
                             };
                         } else data = assignment(value, config.platform);
                     } catch (_) {
@@ -231,7 +239,7 @@
                 }
             );
         }
-        function login(username, password) {
+        function login(username, password, server) {
             cancel();
             hold("connecting");
             session = null;
@@ -244,10 +252,17 @@
                 hold("storage_error");
                 return;
             }
-            if (config.mode === "account") {
+            if (config.mode === "open") {
+                sourceBase = serverOrigin(server);
+                if (!sourceBase) {
+                    hold("invalid_server_error");
+                    return;
+                }
+            }
+            if (accountMode) {
                 account = {
                     password: password,
-                    server: config.apiBase,
+                    server: sourceBase,
                     username: username,
                 };
                 // In-memory lifetime only. Xtream itself validates access on every
@@ -318,7 +333,7 @@
                 hold("storage_error");
                 return;
             }
-            if (validSession(session) && config.mode !== "account") {
+            if (validSession(session) && !accountMode) {
                 hold("connecting");
                 refresh();
             } else logout();
@@ -340,8 +355,16 @@
             login: login,
             logout: logout,
             refresh: refresh,
+            serverOrigin: function () {
+                return sourceBase;
+            },
             start: start,
         };
     }
-    return { assignment: assignment, create: create, validSource: validSource };
+    return {
+        assignment: assignment,
+        create: create,
+        serverOrigin: serverOrigin,
+        validSource: validSource,
+    };
 });

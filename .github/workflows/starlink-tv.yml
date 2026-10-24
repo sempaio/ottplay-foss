@@ -2,7 +2,7 @@ name: STARLINK TV isolated candidate
 on:
   workflow_dispatch:
   push:
-    branches: ['starlink/tv-generico-m81', 'starlink/tv-pessoal-m81']
+    branches: ['starlink/tv-generico-m81', 'starlink/tv-pessoal-m81', 'starlink/samsung-store-generic']
 permissions:
   contents: read
 jobs:
@@ -21,6 +21,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: node tests/test_starlink_tv_browser.cjs
       - run: node scripts/stage-starlink-tv.cjs samsung
+      - run: node scripts/stage-starlink-tv.cjs samsung unused open
       - run: node scripts/stage-starlink-tv.cjs lg
       - run: node scripts/stage-starlink-tv.cjs samsung https://panel.taila5c5c2.ts.net account
       - uses: actions/upload-artifact@v4

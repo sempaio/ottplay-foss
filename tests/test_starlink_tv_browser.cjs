@@ -7,7 +7,8 @@ const { chromium } = require("playwright");
 const { stage } = require("../scripts/stage-starlink-tv.cjs");
 
 async function run(platform, mode = "managed") {
-    const personal = mode === "account";
+    const personal = mode === "account" || mode === "open";
+    const open = mode === "open";
     const directory = stage(platform, "https://panel.invalid", mode);
     const server = http.createServer((request, response) => {
         const file = path.resolve(
@@ -220,8 +221,96 @@ async function run(platform, mode = "managed") {
             .locator("#starlink-login")
             .waitFor({ state: "visible", timeout: 20000 });
         assert.equal(sourceRequests, 0);
+        const screenshots = open && process.env.STARLINK_STORE_SCREENSHOTS;
+        if (screenshots) fs.mkdirSync(screenshots, { recursive: true });
+        async function shot(name) {
+            if (!screenshots) return;
+            const file = path.join(screenshots, name + ".jpg");
+            await page.screenshot({ path: file, quality: 80, type: "jpeg" });
+            assert(fs.statSync(file).size < 500000);
+        }
+        if (open) {
+            assert.equal(
+                await page.locator("#starlink-logout").isVisible(),
+                false
+            );
+            assert.equal(
+                await page.locator("#starlink-retry").isVisible(),
+                false
+            );
+            await shot("01-configurar-servidor");
+            await page.locator("#starlink-help").click();
+            await page
+                .locator("#starlink-sheet-title")
+                .getByText("Sobre o STARLINK Player")
+                .waitFor();
+            await shot("02-informacoes-privacidade");
+            await page.evaluate(() =>
+                document.dispatchEvent(
+                    new KeyboardEvent("keydown", {
+                        bubbles: true,
+                        keyCode: 10009,
+                    })
+                )
+            );
+            await page
+                .locator("#starlink-server")
+                .waitFor({ state: "visible" });
+            await page.evaluate(() =>
+                document.dispatchEvent(
+                    new KeyboardEvent("keydown", {
+                        bubbles: true,
+                        keyCode: 10009,
+                    })
+                )
+            );
+            await page
+                .locator("#starlink-exit-confirm")
+                .waitFor({ state: "visible" });
+            await page.evaluate(() => {
+                window.__storeExits = 0;
+                window.tizen = {
+                    application: {
+                        getCurrentApplication: () => ({
+                            exit: () => window.__storeExits++,
+                        }),
+                    },
+                };
+            });
+            await page.locator("#starlink-exit-confirm").click();
+            assert.equal(await page.evaluate(() => window.__storeExits), 1);
+            await page.locator("#starlink-sheet-back").click();
+            assert.equal(fs.existsSync(path.join(directory, "fonts")), false);
+            assert.equal(
+                await page.locator("#starlink-server").inputValue(),
+                ""
+            );
+            assert.equal(
+                await page.evaluate(() => window.STARLINK_TV_CONFIG.apiBase),
+                ""
+            );
+            await page
+                .locator("#starlink-server")
+                .fill("https://panel.invalid");
+        }
         await page.locator("#starlink-login").fill("fixture-user");
         await page.locator("#starlink-password").fill("fixture-pass");
+        if (open) {
+            await page
+                .locator("#starlink-server")
+                .fill("https://user:pass@invalid");
+            await page.locator("#starlink-form button").click();
+            await page
+                .getByText(
+                    "Informe o endereço HTTP ou HTTPS do servidor, sem usuário, senha ou caminhos na URL.",
+                    { exact: true }
+                )
+                .waitFor();
+            await shot("03-validacao-do-endereco");
+            await page
+                .locator("#starlink-server")
+                .fill("https://panel.invalid");
+        }
         await page.locator("#starlink-form button").click();
         if (!personal) {
             await page
@@ -304,6 +393,7 @@ async function run(platform, mode = "managed") {
             )
         );
         await page.locator("#starlink-logout").waitFor({ state: "visible" });
+        if (open) await shot("04-conta-e-sair");
         await Promise.all([
             page.waitForNavigation({ waitUntil: "domcontentloaded" }),
             page.locator("#starlink-logout").click(),
@@ -345,6 +435,7 @@ async function run(platform, mode = "managed") {
     await run("samsung");
     await run("lg");
     await run("samsung", "account");
+    await run("samsung", "open");
 })().catch((error) => {
     console.error(error);
     process.exitCode = 1;

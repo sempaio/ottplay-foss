@@ -6,6 +6,7 @@
     w.__starlinkTvRoot = w.location.href
         .split(/[?#]/)[0]
         .replace(/\/[^/]*$/, "");
+    var accountMode = config.mode === "account" || config.mode === "open";
     var controller,
         resume,
         started = false,
@@ -32,6 +33,8 @@
         format_error: "O painel recusou o formato do login (HTTP 422).",
         inactive_error: "Esta conta não está ativa no painel (HTTP 403).",
         invalid_assignment: "A configuração recebida não pôde ser carregada.",
+        invalid_server_error:
+            "Informe o endereço HTTP ou HTTPS do servidor, sem usuário, senha ou caminhos na URL.",
         login: "Entre na sua conta para conectar esta TV.",
         login_error:
             "Não foi possível entrar. Confira sua conta e tente novamente.",
@@ -44,6 +47,13 @@
         storage_error: "Não foi possível salvar a configuração nesta TV.",
         waiting: "Aguardando configuração do catálogo pelo painel.",
     };
+    if (config.mode === "open") {
+        Object.keys(messages).forEach(function (key) {
+            messages[key] = messages[key].replace(/painel/g, "servidor");
+        });
+        messages.login =
+            "Configure sua conta de um serviço Xtream. Nenhum conteúdo é fornecido pelo player.";
+    }
     function stop() {
         if (!started) return;
         if (w.__ottActiveProviderDriver) {
@@ -91,11 +101,20 @@
         var playing = value === "ready";
         overlay.hidden = playing;
         accountButton.hidden = !playing;
+        if (config.mode === "open") {
+            var connected = controller && controller.admitted();
+            document.getElementById("starlink-retry").hidden = !connected;
+            document.getElementById("starlink-logout").hidden = !connected;
+        }
         document.getElementById("starlink-back").hidden = !playing;
         form.hidden = value !== "login" && value.indexOf("_error") === -1;
         if (!playing && form.hidden)
             document.getElementById("starlink-retry").focus();
-        else if (!playing) document.getElementById("starlink-login").focus();
+        else if (!playing)
+            (
+                document.getElementById("starlink-server") ||
+                document.getElementById("starlink-login")
+            ).focus();
         document.body.classList.remove("booting");
     }
     function request(method, path, body, headers, callback) {
@@ -107,7 +126,11 @@
                 callback(code, value);
             }
         }
-        xhr.open(method, config.apiBase + path, true);
+        xhr.open(
+            method,
+            (controller ? controller.serverOrigin() : config.apiBase) + path,
+            true
+        );
         xhr.timeout = 20000;
         Object.keys(headers).forEach(function (key) {
             xhr.setRequestHeader(key, headers[key]);
@@ -138,7 +161,7 @@
         };
     }
     function apply(url) {
-        var provider = config.mode === "account" ? "xtream" : "m3u";
+        var provider = accountMode ? "xtream" : "m3u";
         if (provider === "m3u")
             w.stbSetItem(
                 "m3um3uArr",
@@ -163,16 +186,75 @@
             '<div class="starlink-card"><img class="starlink-logo" src="./starlink/logo.png" alt="STARLINK IPTV">' +
             '<div class="starlink-brand">STARLINK <span>IPTV</span></div>' +
             '<h1>Seu conteúdo, na sua TV.</h1><p id="starlink-status" role="status"></p>' +
-            '<form id="starlink-form"><label for="starlink-login">Usuário</label><input id="starlink-login" autocomplete="username" maxlength="100">' +
+            '<form id="starlink-form">' +
+            (config.mode === "open"
+                ? '<label for="starlink-server">Servidor Xtream</label><input id="starlink-server" type="url" placeholder="https://seu-servidor:porta" autocomplete="off" maxlength="2048">'
+                : "") +
+            '<label for="starlink-login">Usuário</label><input id="starlink-login" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="100">' +
             '<label for="starlink-password">Senha</label><input id="starlink-password" type="password" autocomplete="current-password" maxlength="100">' +
             '<button type="submit">Conectar TV</button></form><div class="starlink-actions">' +
             '<button id="starlink-retry" type="button">Verificar catálogo</button>' +
             '<button id="starlink-logout" type="button">Sair da conta</button>' +
             '<button id="starlink-back" type="button" hidden>Voltar ao player</button></div>' +
-            '<p class="starlink-note">O conteúdo é disponibilizado pelo responsável pela sua conta.</p></div>';
+            '<p class="starlink-note">' +
+            (config.mode === "open"
+                ? "Player Xtream. Não inclui canais, assinaturas ou servidores pré-configurados."
+                : "O conteúdo é disponibilizado pelo responsável pela sua conta.") +
+            "</p></div>";
+        if (config.mode === "open") {
+            var main = node.querySelector(".starlink-card"),
+                sheet = document.createElement("div");
+            sheet.className = "starlink-card";
+            sheet.hidden = true;
+            sheet.innerHTML =
+                '<h1 id="starlink-sheet-title"></h1><div id="starlink-sheet-text" tabindex="0"></div><button id="starlink-sheet-back" type="button">Voltar</button><button id="starlink-exit-confirm" type="button" hidden>Sair do aplicativo</button>';
+            node.appendChild(sheet);
+            var help = document.createElement("button");
+            help.id = "starlink-help";
+            help.type = "button";
+            help.textContent = "Informações e privacidade";
+            main.appendChild(help);
+            function closeSheet() {
+                sheet.hidden = true;
+                main.hidden = false;
+                help.focus();
+            }
+            function showSheet(exit) {
+                main.hidden = true;
+                sheet.hidden = false;
+                document.getElementById("starlink-sheet-title").textContent =
+                    exit ? "Sair do aplicativo?" : "Sobre o STARLINK Player";
+                document.getElementById("starlink-sheet-text").textContent =
+                    exit
+                        ? "Confirme para fechar o player."
+                        : "Player genérico para serviços compatíveis com Xtream. Informe o endereço base do servidor, usuário e senha fornecidos pelo seu serviço. O player não vende assinaturas e não fornece canais, filmes ou listas.\n\nO servidor escolhido recebe suas credenciais e solicitações de catálogo e reprodução. Prefira HTTPS: em HTTP, as credenciais trafegam sem criptografia. Usuário e senha ficam na memória durante a sessão; ao reabrir o aplicativo, entre novamente. Preferências, favoritos e histórico podem ficar no armazenamento local da TV; sair da conta limpa os dados deste aplicativo. O botão Azul abre a conta.\n\nEste player utiliza OTT-play FOSS e OTT-play Core. Copyright (c) 2026 open-ott-play. Licença MIT: uso, cópia, modificação e distribuição permitidos, mantendo os avisos autorais e a licença. Software fornecido sem garantias. O pacote preserva LICENSE e THIRD-PARTY-NOTICES.md e as licenças dos componentes incluídos.";
+                document.getElementById("starlink-exit-confirm").hidden = !exit;
+                document.getElementById("starlink-sheet-back").focus();
+            }
+            help.onclick = function () {
+                showSheet(false);
+            };
+            sheet.querySelector("#starlink-sheet-back").onclick = closeSheet;
+            sheet.querySelector("#starlink-exit-confirm").onclick =
+                function () {
+                    try {
+                        w.tizen.application.getCurrentApplication().exit();
+                    } catch (_) {
+                        closeSheet();
+                    }
+                };
+            node.__back = function () {
+                if (!sheet.hidden) closeSheet();
+                else if (controller && controller.admitted()) state("ready");
+                else showSheet(true);
+            };
+        }
         var build = document.createElement("p");
         build.id = "starlink-build";
-        build.textContent = config.apiBase + " · " + config.version;
+        build.textContent =
+            (config.mode === "open" ? "Player genérico" : config.apiBase) +
+            " · " +
+            config.version;
         node.querySelector(".starlink-card").appendChild(build);
         document.body.appendChild(node);
         overlay = node;
@@ -202,8 +284,13 @@
                 state("empty_error");
                 return;
             }
+            var server = document.getElementById("starlink-server");
+            if (server && !w.StarlinkTvController.serverOrigin(server.value)) {
+                state("invalid_server_error");
+                return;
+            }
             password.value = "";
-            controller.login(login, secret);
+            controller.login(login, secret, server ? server.value : undefined);
         };
         document.getElementById("starlink-retry").onclick = function () {
             controller.refresh(true);
@@ -224,17 +311,33 @@
                     return;
                 }
                 event.stopImmediatePropagation();
-                var nodes = overlay.querySelectorAll("input,button"),
+                var nodes = overlay.querySelectorAll(
+                        'input,button,[tabindex="0"]'
+                    ),
                     visible = [],
                     i;
                 for (i = 0; i < nodes.length; i++)
                     if (nodes[i].offsetParent !== null) visible.push(nodes[i]);
                 var index = visible.indexOf(document.activeElement);
-                if (key === 38 || key === 40 || key === 9) {
+                if (
+                    (key === 38 || key === 40) &&
+                    document.activeElement.id === "starlink-sheet-text"
+                ) {
+                    event.preventDefault();
+                    document.activeElement.scrollTop += key === 38 ? -80 : 80;
+                } else if (
+                    key === 38 ||
+                    key === 40 ||
+                    key === 9 ||
+                    ((key === 37 || key === 39) &&
+                        document.activeElement.tagName === "BUTTON")
+                ) {
                     event.preventDefault();
                     if (visible.length)
                         visible[
-                            (index + (key === 38 ? -1 : 1) + visible.length) %
+                            (index +
+                                (key === 38 || key === 37 ? -1 : 1) +
+                                visible.length) %
                                 visible.length
                         ].focus();
                 } else if (
@@ -245,10 +348,11 @@
                     document.activeElement.click();
                 } else if (
                     (key === 10009 || key === 461 || key === 27) &&
-                    controller.admitted()
+                    (controller.admitted() || config.mode === "open")
                 ) {
                     event.preventDefault();
-                    state("ready");
+                    if (overlay.__back) overlay.__back();
+                    else state("ready");
                 }
             },
             true
@@ -298,7 +402,7 @@
                     },
                     {
                         apiBase: config.apiBase,
-                        deviceId: deviceId(),
+                        deviceId: config.mode === "open" ? "" : deviceId(),
                         mode: config.mode,
                         platform: config.platform,
                     }

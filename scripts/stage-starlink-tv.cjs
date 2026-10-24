@@ -6,20 +6,24 @@ const crypto = require("node:crypto");
 const { execFileSync } = require("node:child_process");
 const root = path.resolve(__dirname, "..");
 function stage(platform, apiBase, mode = "managed") {
-    if (!["managed", "account"].includes(mode))
+    if (!["managed", "account", "open"].includes(mode))
         throw new Error("Invalid catalog mode");
     const personal = mode === "account";
-    const providerFile = personal ? "provider-xtream.js" : "provider-m3u.js";
+    const open = mode === "open";
+    const version = open ? "0.2.0" : personal ? "0.1.2" : "0.1.0";
+    const providerFile =
+        personal || open ? "provider-xtream.js" : "provider-m3u.js";
     if (!["samsung", "lg"].includes(platform))
         throw new Error("Choose samsung or lg");
-    const api = new URL(apiBase);
+    const api = open ? null : new URL(apiBase);
     if (
-        api.protocol !== "https:" ||
-        api.username ||
-        api.password ||
-        api.search ||
-        api.hash ||
-        api.pathname !== "/"
+        api &&
+        (api.protocol !== "https:" ||
+            api.username ||
+            api.password ||
+            api.search ||
+            api.hash ||
+            api.pathname !== "/")
     )
         throw new Error(
             "Use an HTTPS API origin without credentials, path, query or fragment"
@@ -63,11 +67,15 @@ function stage(platform, apiBase, mode = "managed") {
             path.join(out, "starlink", name)
         );
     const config = {
-        apiBase: api.origin,
+        apiBase: open ? "" : api.origin,
         contentBundled: false,
         mode,
         platform,
-        version: personal ? "0.1.2-personal-preview" : "0.1.0-preview",
+        version: open
+            ? "0.2.0-store-candidate"
+            : personal
+              ? "0.1.2-personal-preview"
+              : "0.1.0-preview",
     };
     const configScript =
         "window.STARLINK_TV_CONFIG=" + JSON.stringify(config) + ";\n";
@@ -123,7 +131,7 @@ function stage(platform, apiBase, mode = "managed") {
                     title: "STARLINK IPTV Prévia",
                     type: "web",
                     vendor: "STARLINK",
-                    version: personal ? "0.1.2" : "0.1.0",
+                    version,
                 },
                 null,
                 2
@@ -143,16 +151,38 @@ function stage(platform, apiBase, mode = "managed") {
                 '<access origin="*" subdomains="true"/>\n' +
                 "<tizen:content-security-policy>default-src 'self'; script-src 'self' 'unsafe-inline' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: http: https:; connect-src http: https:; media-src http: https: blob:; worker-src 'self' blob:; object-src 'self'; frame-src 'none'</tizen:content-security-policy>\n</widget>\n"
             )
-                .replace(/STLTVP0010/g, personal ? "STLTVA0010" : "STLTVP0010")
-                .replace(/0\.1\.0/g, personal ? "0.1.2" : "0.1.0")
+                .replace(
+                    /STLTVP0010/g,
+                    open ? "STLTVG0010" : personal ? "STLTVA0010" : "STLTVP0010"
+                )
+                .replace(/0\.1\.0/g, version)
                 .replace(
                     /STARLINK IPTV Prévia/g,
-                    personal ? "STARLINK Pessoal" : "STARLINK IPTV Prévia"
+                    open
+                        ? "STARLINK Player"
+                        : personal
+                          ? "STARLINK Pessoal"
+                          : "STARLINK IPTV Prévia"
                 )
                 .replace(
                     /tv\/preview/g,
-                    personal ? "tv/personal-preview" : "tv/preview"
+                    open
+                        ? "tv/generic-player"
+                        : personal
+                          ? "tv/personal-preview"
+                          : "tv/preview"
                 )
+        );
+    }
+    if (open) {
+        // Reuse the audited native system-font transformation. This candidate
+        // does not redistribute the historical Fontello/web font binaries.
+        require("./native-runtime.cjs").stageNativeFonts(out);
+        fs.rmSync(path.join(out, "favicon.ico"), { force: true });
+        const entry = path.join(out, "index.html");
+        fs.writeFileSync(
+            entry,
+            fs.readFileSync(entry, "utf8").replace(/favicon\.ico/g, "icon.png")
         );
     }
     for (const name of ["LICENSE", "THIRD-PARTY-NOTICES.md"])

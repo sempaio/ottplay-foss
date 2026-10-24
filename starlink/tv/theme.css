@@ -16,3 +16,14 @@
 #starlink-account { position:fixed; top:16px; right:24px; z-index:2147482000; opacity:.9; font-size:18px; }
 
 #starlink-build { color:#9aa7c1; font:16px Arial,sans-serif; overflow-wrap:break-word; }
+
+#starlink-sheet-text { max-height:380px; overflow:auto; white-space:pre-line; font-size:22px; line-height:1.4; }
+@media (max-height:800px) {
+    #starlink-connect { align-items:flex-start; padding:20px 0; box-sizing:border-box; }
+    .starlink-card { padding:24px; }
+    .starlink-card h1 { font-size:26px; margin:12px 0; }
+    .starlink-brand { font-size:32px; }
+    #starlink-status { min-height:40px; font-size:20px; }
+    #starlink-form label { margin:8px 0 4px; }
+    #starlink-form input { padding:10px; font-size:20px; }
+}

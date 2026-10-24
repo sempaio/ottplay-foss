@@ -7,7 +7,7 @@ const { JSDOM } = require("jsdom");
 const controllerSource = fs.readFileSync("starlink/tv/controller.js", "utf8");
 const context = { module: { exports: {} } };
 vm.runInNewContext(controllerSource, context);
-const { create, assignment } = context.module.exports;
+const { create, assignment, serverOrigin } = context.module.exports;
 const future = "2030-01-01T00:00:00Z";
 const saved = {
     expires: future,
@@ -393,4 +393,40 @@ test("personal account cannot bypass denial and polling does not reopen the cata
     assert.equal(r.owner.admitted(), false);
     assert.equal(r.owner.accountSource(), null);
     assert.equal(r.stored(), null);
+});
+
+test("open player starts empty and requires an explicit credential-free server origin", () => {
+    for (const value of [
+        "",
+        "ftp://host",
+        "https://user:pass@host",
+        "https://host/path",
+        "https://host?x=1",
+        "https://host#fragment",
+        "https://host\\evil",
+    ])
+        assert.equal(serverOrigin(value), "");
+    assert.equal(
+        serverOrigin(" https://my-server.invalid:8443/ "),
+        "https://my-server.invalid:8443"
+    );
+    assert.equal(
+        serverOrigin("http://192.168.1.10:8080"),
+        "http://192.168.1.10:8080"
+    );
+    const r = rig(null, "open");
+    r.owner.start();
+    assert.equal(r.requests.length, 0);
+    r.owner.login("fixture", "secret", "https://user:pass@host");
+    assert.equal(r.requests.length, 0);
+    assert.equal(r.states.at(-1), "invalid_server_error");
+    r.owner.login("fixture", "secret", "https://chosen.invalid:8443/");
+    assert.equal(r.owner.serverOrigin(), "https://chosen.invalid:8443");
+    assert(r.requests[0].path.startsWith("/player_api.php?"));
+    r.requests[0].done(200, { user_info: { auth: 1, status: "Active" } });
+    assert.equal(r.owner.accountSource().server, "https://chosen.invalid:8443");
+    assert.equal(r.applied[0].url, "https://chosen.invalid:8443");
+    assert.equal(r.stored(), null);
+    r.owner.logout();
+    assert.equal(r.owner.admitted(), false);
 });

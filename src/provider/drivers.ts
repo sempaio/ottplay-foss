@@ -2059,7 +2059,7 @@ function mountProviderDriver(
         {
             account:
                 host.STARLINK_TV_CONFIG &&
-                host.STARLINK_TV_CONFIG.mode === "account"
+                host.STARLINK_TV_CONFIG.mode !== "managed"
                     ? host.__starlinkTv
                     : null,
             catalogProgress: function (scanned, items, total) {

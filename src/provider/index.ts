@@ -81,7 +81,7 @@ export function isProviderAllowed(id: string): boolean {
     if (managedTv)
         return (
             id ===
-                ((window as any).STARLINK_TV_CONFIG.mode === "account"
+                ((window as any).STARLINK_TV_CONFIG.mode !== "managed"
                     ? "xtream"
                     : "m3u") && managedTv.admitted()
         );
