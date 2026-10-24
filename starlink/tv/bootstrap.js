@@ -17,14 +17,30 @@
     var sessionKey = "starlink-tv-session-v1",
         deviceKey = "starlink-tv-device-v1";
     var messages = {
+        access_error: "O painel recusou o acesso desta conta (HTTP 403).",
+        blocked_error:
+            "Conta bloqueada no painel (HTTP 403). Fale com o atendimento.",
         connecting: "Conectando sua TV…",
         connection_error:
-            "Não foi possível conectar ao painel. Tente novamente.",
+            "A TV não conseguiu concluir a conexão HTTPS com o painel. Verifique internet, data e hora.",
+        credentials_error:
+            "O painel recusou usuário ou senha IPTV (HTTP 401). Confira maiúsculas e minúsculas.",
+        empty_error: "Preencha usuário e senha antes de conectar.",
+        endpoint_error:
+            "O endereço configurado não oferece este login (HTTP 404/405).",
+        expired_error: "A assinatura desta conta venceu (HTTP 403).",
+        format_error: "O painel recusou o formato do login (HTTP 422).",
+        inactive_error: "Esta conta não está ativa no painel (HTTP 403).",
         invalid_assignment: "A configuração recebida não pôde ser carregada.",
         login: "Entre na sua conta para conectar esta TV.",
         login_error:
             "Não foi possível entrar. Confira sua conta e tente novamente.",
+        rate_error:
+            "Muitas tentativas de login. Aguarde 15 minutos (HTTP 429).",
         ready: "TV conectada.",
+        response_error:
+            "O painel respondeu, mas a resposta de login é incompatível (HTTP 200).",
+        server_error: "O painel apresentou um erro interno (HTTP 5xx).",
         storage_error: "Não foi possível salvar a configuração nesta TV.",
         waiting: "Aguardando configuração do catálogo pelo painel.",
     };
@@ -76,10 +92,7 @@
         overlay.hidden = playing;
         accountButton.hidden = !playing;
         document.getElementById("starlink-back").hidden = !playing;
-        form.hidden =
-            value !== "login" &&
-            value !== "login_error" &&
-            value !== "connection_error";
+        form.hidden = value !== "login" && value.indexOf("_error") === -1;
         if (!playing && form.hidden)
             document.getElementById("starlink-retry").focus();
         else if (!playing) document.getElementById("starlink-login").focus();
@@ -157,6 +170,10 @@
             '<button id="starlink-logout" type="button">Sair da conta</button>' +
             '<button id="starlink-back" type="button" hidden>Voltar ao player</button></div>' +
             '<p class="starlink-note">O conteúdo é disponibilizado pelo responsável pela sua conta.</p></div>';
+        var build = document.createElement("p");
+        build.id = "starlink-build";
+        build.textContent = config.apiBase + " · " + config.version;
+        node.querySelector(".starlink-card").appendChild(build);
         document.body.appendChild(node);
         overlay = node;
         status = document.getElementById("starlink-status");
@@ -180,16 +197,16 @@
         form.onsubmit = function (event) {
             event.preventDefault();
             var secret = password.value;
-            password.value = "";
             var login = document.getElementById("starlink-login").value.trim();
             if (!login || !secret) {
-                state("login_error");
+                state("empty_error");
                 return;
             }
+            password.value = "";
             controller.login(login, secret);
         };
         document.getElementById("starlink-retry").onclick = function () {
-            controller.refresh();
+            controller.refresh(true);
         };
         document.getElementById("starlink-logout").onclick = function () {
             controller.logout();

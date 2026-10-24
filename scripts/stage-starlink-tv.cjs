@@ -67,7 +67,7 @@ function stage(platform, apiBase, mode = "managed") {
         contentBundled: false,
         mode,
         platform,
-        version: personal ? "0.1.1-personal-preview" : "0.1.0-preview",
+        version: personal ? "0.1.2-personal-preview" : "0.1.0-preview",
     };
     const configScript =
         "window.STARLINK_TV_CONFIG=" + JSON.stringify(config) + ";\n";
@@ -123,7 +123,7 @@ function stage(platform, apiBase, mode = "managed") {
                     title: "STARLINK IPTV Prévia",
                     type: "web",
                     vendor: "STARLINK",
-                    version: personal ? "0.1.1" : "0.1.0",
+                    version: personal ? "0.1.2" : "0.1.0",
                 },
                 null,
                 2
@@ -144,7 +144,7 @@ function stage(platform, apiBase, mode = "managed") {
                 "<tizen:content-security-policy>default-src 'self'; script-src 'self' 'unsafe-inline' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: http: https:; connect-src http: https:; media-src http: https: blob:; worker-src 'self' blob:; object-src 'self'; frame-src 'none'</tizen:content-security-policy>\n</widget>\n"
             )
                 .replace(/STLTVP0010/g, personal ? "STLTVA0010" : "STLTVP0010")
-                .replace(/0\.1\.0/g, personal ? "0.1.1" : "0.1.0")
+                .replace(/0\.1\.0/g, personal ? "0.1.2" : "0.1.0")
                 .replace(
                     /STARLINK IPTV Prévia/g,
                     personal ? "STARLINK Pessoal" : "STARLINK IPTV Prévia"

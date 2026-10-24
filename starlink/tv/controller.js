@@ -29,6 +29,22 @@
             throw new Error("invalid_assignment");
         return value;
     }
+    function loginFailure(status, data) {
+        var code = data && data.detail && data.detail.code;
+        if (status === 401) return "credentials_error";
+        if (status === 403) {
+            if (code === "client_blocked") return "blocked_error";
+            if (code === "subscription_expired") return "expired_error";
+            if (code === "client_inactive") return "inactive_error";
+            return "access_error";
+        }
+        if (status === 429) return "rate_error";
+        if (status === 404 || status === 405) return "endpoint_error";
+        if (status === 422) return "format_error";
+        if (status >= 500) return "server_error";
+        if (status === 200) return "response_error";
+        return "connection_error";
+    }
     function create(ports, config) {
         var generation = 0,
             pending = null,
@@ -48,9 +64,11 @@
         function validSession(value) {
             return (
                 value &&
-                typeof value.token === "string" &&
-                value.token.length >= 20 &&
-                value.token.length <= 500 &&
+                (config.mode === "account"
+                    ? !!account
+                    : typeof value.token === "string" &&
+                      value.token.length >= 20 &&
+                      value.token.length <= 500) &&
                 isFinite(Date.parse(value.expires)) &&
                 Date.parse(value.expires) > ports.now()
             );
@@ -89,8 +107,10 @@
             );
             timer = ports.setTimer(refresh, delay);
         }
-        function refresh() {
+        var catalogCheck = 0;
+        function refresh(force) {
             cancel();
+            if (force === true) catalogCheck += 1;
             if (!validSession(session)) {
                 logout();
                 return;
@@ -99,18 +119,25 @@
             pending = ports.request(
                 "GET",
                 config.mode === "account"
-                    ? "/app/auth/playlist-revision"
+                    ? "/player_api.php?username=" +
+                          encodeURIComponent(account.username) +
+                          "&password=" +
+                          encodeURIComponent(account.password)
                     : "/api/v1/tv-m3u/source?platform=" + config.platform,
                 null,
-                {
-                    Authorization: "Bearer " + session.token,
-                    "X-Device-ID": config.deviceId,
-                },
+                config.mode === "account"
+                    ? {}
+                    : {
+                          Authorization: "Bearer " + session.token,
+                          "X-Device-ID": config.deviceId,
+                      },
                 function (status, value) {
                     if (owner !== generation) return;
                     pending = null;
                     if (status === 401 || status === 403) {
                         logout();
+                        if (config.mode === "account")
+                            hold(loginFailure(status, value));
                         return;
                     }
                     if (!validSession(session)) {
@@ -118,25 +145,55 @@
                         return;
                     }
                     if (status !== 200) {
-                        hold("connection_error");
+                        hold(
+                            config.mode === "account"
+                                ? loginFailure(status, value)
+                                : "connection_error"
+                        );
                         schedule(30);
                         return;
                     }
                     var data;
                     try {
                         if (config.mode === "account") {
+                            var user = value && value.user_info;
                             if (
-                                !account ||
-                                !value ||
-                                typeof value.revision !== "string" ||
-                                !value.revision
-                            )
-                                throw new Error("invalid_account_revision");
+                                !user ||
+                                (user.auth !== 1 && user.auth !== "1")
+                            ) {
+                                account = null;
+                                session = null;
+                                hold("credentials_error");
+                                return;
+                            }
+                            if (user.status && user.status !== "Active") {
+                                account = null;
+                                session = null;
+                                hold(
+                                    user.status === "Expired"
+                                        ? "expired_error"
+                                        : "access_error"
+                                );
+                                return;
+                            }
+                            var expiry = Number(user.exp_date) * 1000;
+                            if (isFinite(expiry) && expiry > 0) {
+                                session.expires = new Date(
+                                    Math.min(
+                                        expiry,
+                                        Date.parse(session.expires)
+                                    )
+                                ).toISOString();
+                                if (!validSession(session)) {
+                                    logout();
+                                    hold("expired_error");
+                                    return;
+                                }
+                            }
                             data = {
                                 configured: true,
-                                refresh_seconds:
-                                    value.poll_after_seconds || 120,
-                                revision: value.revision,
+                                refresh_seconds: 120,
+                                revision: "xtream:" + catalogCheck,
                                 source_url: config.apiBase,
                             };
                         } else data = assignment(value, config.platform);
@@ -187,6 +244,21 @@
                 hold("storage_error");
                 return;
             }
+            if (config.mode === "account") {
+                account = {
+                    password: password,
+                    server: config.apiBase,
+                    username: username,
+                };
+                // In-memory lifetime only. Xtream itself validates access on every
+                // request; no app session is created or existing device revoked.
+                session = {
+                    expires: new Date(ports.now() + 2592000000).toISOString(),
+                };
+                catalogCheck = 0;
+                refresh();
+                return;
+            }
             var owner = generation;
             pending = ports.request(
                 "POST",
@@ -223,11 +295,7 @@
                         data.authorized !== true ||
                         !validSession(next)
                     ) {
-                        hold(
-                            status === 401 || status === 403
-                                ? "login_error"
-                                : "connection_error"
-                        );
+                        hold(loginFailure(status, data));
                         return;
                     }
                     try {
@@ -238,12 +306,6 @@
                         return;
                     }
                     session = next;
-                    if (config.mode === "account")
-                        account = {
-                            password: password,
-                            server: config.apiBase,
-                            username: username,
-                        };
                     revision = "";
                     refresh();
                 }

@@ -81,6 +81,11 @@ async function run(platform, mode = "managed") {
             }
             if (url.origin === "https://panel.invalid") {
                 if (url.pathname === "/app/auth/login") {
+                    assert.equal(
+                        personal,
+                        false,
+                        "Personal TV must use the Android Xtream flow"
+                    );
                     const body = request.postDataJSON();
                     assert.equal(body.login, "fixture-user");
                     assert(
@@ -104,6 +109,9 @@ async function run(platform, mode = "managed") {
                     personal &&
                     url.pathname === "/app/auth/playlist-revision"
                 ) {
+                    assert.fail(
+                        "Personal TV must not create or poll an app session"
+                    );
                     await route.fulfill({
                         headers: cors,
                         json: { poll_after_seconds: 120, revision: "original" },

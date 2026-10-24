@@ -312,22 +312,13 @@ test("ES5 bootstrap uses branded empty shell; password never persists", (t) => {
     dom.window.close();
 });
 
-test("personal catalog uses account revision and keeps credentials only in memory", () => {
+test("personal catalog validates Xtream directly and keeps credentials only in memory", () => {
     const r = rig(null, "account");
     r.owner.start();
     r.owner.login("fixture-user", "fixture-pass");
-    r.requests
-        .at(-1)
-        .done(200, {
-            authorized: true,
-            expires_at: future,
-            session_token: saved.token,
-        });
-    assert.equal(r.requests.at(-1).path, "/app/auth/playlist-revision");
+    assert(r.requests.at(-1).path.startsWith("/player_api.php?"));
     assert.equal(r.owner.accountSource(), null);
-    r.requests
-        .at(-1)
-        .done(200, { poll_after_seconds: 120, revision: "original" });
+    r.requests.at(-1).done(200, { user_info: { auth: 1, status: "Active" } });
     assert.equal(r.owner.accountSource().username, "fixture-user");
     assert.equal(r.owner.accountSource().password, "fixture-pass");
     assert.equal(JSON.stringify(r.stored()).includes("fixture-pass"), false);
@@ -343,4 +334,63 @@ test("personal restart requires login rather than persisting Xtream credentials"
     assert.equal(r.states.at(-1), "login");
     assert.equal(r.requests.length, 0);
     assert.equal(r.owner.accountSource(), null);
+});
+
+test("login failures distinguish local fields, credentials, denial and server responses without exposing detail", () => {
+    for (const [status, code, state] of [
+        [401, "invalid_credentials", "credentials_error"],
+        [403, "client_blocked", "blocked_error"],
+        [403, "subscription_expired", "expired_error"],
+        [403, "client_inactive", "inactive_error"],
+        [403, "unknown", "access_error"],
+        [429, "anything", "rate_error"],
+        [404, "anything", "endpoint_error"],
+        [422, "anything", "format_error"],
+        [500, "anything", "server_error"],
+        [200, "anything", "response_error"],
+        [0, "anything", "connection_error"],
+    ]) {
+        const r = rig();
+        r.owner.login("fixture-user", "fixture-secret");
+        r.requests[0].done(status, {
+            detail: { code, message: "private-server-detail" },
+        });
+        assert.equal(r.states.at(-1), state);
+        assert.equal(r.owner.admitted(), false);
+        assert.equal(r.requests.length, 1);
+        assert.equal(r.stored(), null);
+    }
+});
+
+test("personal account cannot bypass denial and polling does not reopen the catalog", () => {
+    for (const data of [
+        { user_info: { auth: 0 } },
+        { user_info: { auth: 1, status: "Expired" } },
+        {},
+    ]) {
+        const r = rig(null, "account");
+        r.owner.login("fixture-user", "fixture-pass");
+        r.requests[0].done(200, data);
+        assert.equal(r.owner.admitted(), false);
+        assert.equal(r.owner.accountSource(), null);
+        assert.equal(r.applied.length, 0);
+    }
+    const r = rig(null, "account");
+    r.owner.login("fixture-user", "fixture-pass");
+    const success = { user_info: { auth: "1", status: "Active" } };
+    r.requests.at(-1).done(200, success);
+    assert.deepEqual(Object.keys(r.requests[0].headers), []);
+    r.timer().fn();
+    r.requests.at(-1).done(200, success);
+    assert.equal(r.applied.length, 1);
+    r.owner.refresh(true);
+    r.requests.at(-1).done(200, success);
+    assert.equal(r.applied.length, 2);
+    r.owner.refresh();
+    const late = r.requests.at(-1);
+    r.owner.logout();
+    late.done(200, success);
+    assert.equal(r.owner.admitted(), false);
+    assert.equal(r.owner.accountSource(), null);
+    assert.equal(r.stored(), null);
 });
