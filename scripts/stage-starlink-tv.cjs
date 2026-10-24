@@ -32,6 +32,7 @@ function stage(platform, apiBase) {
     for (const name of fs.readdirSync(source)) {
         if (
             name === "index.html" ||
+            name === "dist" ||
             name === "dist-mobile" ||
             name === "offline-worker.js"
         )
@@ -111,6 +112,7 @@ function stage(platform, apiBase) {
                     icon: "icon.png",
                     id: "com.starlink.iptv.tv.preview",
                     main: "index.html",
+                    requiredACG: [],
                     resolution: "1920x1080",
                     title: "STARLINK IPTV Prévia",
                     type: "web",
