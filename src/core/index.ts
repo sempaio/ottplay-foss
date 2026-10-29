@@ -2638,7 +2638,7 @@ export function stbInit(): void {
     try {
         if (!document.getElementById("vdiv")) {
             $("body").prepend(
-                '<div id="vdiv" style="position: absolute; overflow: hidden; background-color: black; display: flex; align-items: center; justify-content: center;"><video id="video" playsinline style="object-fit: contain; object-position: center center; max-width: 100%; max-height: 100%;"></video></div><video id="videopip" playsinline muted style="position: absolute; display: none; background-color: black; object-fit: cover; object-position: center center;"></video>'
+                '<div id="vdiv" style="position:absolute;overflow:hidden;background-color:black;display:flex;align-items:center;justify-content:center;"><video id="video" playsinline style="object-fit:contain;object-position:center center;max-width:100%;max-height:100%;"></video></div><video id="videopip" playsinline muted style="position:absolute;display:none;background-color:black;object-fit:cover;object-position:center center;"></video>'
             );
         }
         video = document.getElementById("video") as HTMLVideoElement;
