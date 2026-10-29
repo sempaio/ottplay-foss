@@ -23,3 +23,29 @@ The owner selected the customized STARLINK Android application and authorized
 only application delivery/download changes in M81. IPTV authentication, catalog,
 publication and streaming remain outside that backend change. No backend or
 operational data is changed by this TV branch.
+
+## Verified result
+
+Compiled source: `f5a20d878697dbf3e98bfa9ef49f0e6c1641b079`. The clean committed
+build produced 985691 entry bytes (305047 gzip), passing the unchanged budget.
+Typecheck, the DOM/CSS equivalence test, 14 TV contract tests and 320-script ES5
+validation passed. Packaged Chromium tests passed Samsung/LG managed mode and
+Samsung personal Xtream mode with intercepted synthetic traffic.
+
+Tizen CLI successfully packaged the personal preview using the owner's existing
+M81_SAMSUNG_VALIDATION profile. The WGT contains author/distributor signature
+files. Size: 11947248 bytes; SHA256:
+`e4ffc1001ebebfda85368704c130bd44a0e215175413781a5efd41ee216ca53c`.
+Package: STLTVA0010.StarlinkTV, personal preview 0.1.2.
+
+Delivery URL:
+https://panel.taila5c5c2.ts.net/client-apps/download/starlink-iptv-samsung
+
+The external GitHub check 40816738483 in sempaio/painel-m81-iptv-cloud verified
+public DNS and a bounded HTTP range for this WGT without VPN. Full download
+hashes were checked separately on local/domain requests at deployment.
+
+No physical TV was connected to SDB. Installation, certificate/DUID acceptance,
+real provider playback and Samsung store publication remain unverified; a signed
+developer preview is not a universally installable store release. Later
+documentation commits do not change the source identity compiled into this WGT.
