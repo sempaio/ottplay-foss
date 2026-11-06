@@ -29,12 +29,12 @@ function snapshot(html) {
     const dom = new JSDOM(html);
     windows.push(dom.window);
     return [...dom.window.document.body.querySelectorAll("*")].map((el) => ({
-        tag: el.tagName,
-        parent: el.parentElement.id,
         attributes: [...el.attributes].map((a) => [
             a.name,
             a.name === "style" ? el.style.cssText : a.value,
         ]),
+        parent: el.parentElement.id,
+        tag: el.tagName,
     }));
 }
 try {

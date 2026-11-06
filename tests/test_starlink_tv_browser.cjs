@@ -341,26 +341,37 @@ async function run(platform, mode = "managed") {
             await page.locator('[data-interest="futebol"]').click();
             await page.locator("#starlink-for-you-save").click();
             assert.equal(
-                await page.evaluate(() => JSON.parse(localStorage.getItem("starlink-for-you-v1")).interests[0]),
+                await page.evaluate(
+                    () =>
+                        JSON.parse(localStorage.getItem("starlink-for-you-v1"))
+                            .interests[0]
+                ),
                 "futebol"
             );
             if (open) await shot("05-paravoce-samsung");
             assert(
-                (await page.locator("#starlink-for-you-categories button").count()) > 0,
+                (await page
+                    .locator("#starlink-for-you-categories button")
+                    .count()) > 0,
                 "Samsung home should expose real categories loaded from the chosen source"
             );
-            await page.locator("#starlink-for-you-search").fill(
-                personal ? "Original live" : "Canal de validação"
-            );
+            await page
+                .locator("#starlink-for-you-search")
+                .fill(personal ? "Original live" : "Canal de validação");
             assert(
-                await page.locator("#starlink-for-you-results [data-channel-id]").count(),
+                await page
+                    .locator("#starlink-for-you-results [data-channel-id]")
+                    .count(),
                 "Matching fixture channel should appear in home search"
             );
             await page.locator("#starlink-for-you-recommendations").click();
             await page.locator("#starlink-for-you-close").click();
             await preferences.waitFor({ state: "hidden" });
         } else {
-            assert.equal(await page.locator("#starlink-for-you-root").count(), 0);
+            assert.equal(
+                await page.locator("#starlink-for-you-root").count(),
+                0
+            );
         }
         assert.equal(
             await page.evaluate(() => window.__ottActiveProviderDriver.id),
@@ -403,15 +414,21 @@ async function run(platform, mode = "managed") {
             if (platform === "samsung") {
                 await page.locator("#starlink-for-you-launch").click();
                 await page.locator("#starlink-for-you-movies").click();
-                await page.waitForFunction(() =>
-                    Array.isArray(window.mediaRecords) &&
-                    window.mediaRecords.some((row) => row.title === "Original movie")
+                await page.waitForFunction(
+                    () =>
+                        Array.isArray(window.mediaRecords) &&
+                        window.mediaRecords.some(
+                            (row) => row.title === "Original movie"
+                        )
                 );
                 await page.locator("#starlink-for-you-launch").click();
                 await page.locator("#starlink-for-you-series").click();
-                await page.waitForFunction(() =>
-                    Array.isArray(window.mediaRecords) &&
-                    window.mediaRecords.some((row) => row.title === "Original series")
+                await page.waitForFunction(
+                    () =>
+                        Array.isArray(window.mediaRecords) &&
+                        window.mediaRecords.some(
+                            (row) => row.title === "Original series"
+                        )
                 );
             }
 
@@ -449,7 +466,9 @@ async function run(platform, mode = "managed") {
             null
         );
         assert.equal(
-            await page.evaluate(() => localStorage.getItem("starlink-for-you-v1")),
+            await page.evaluate(() =>
+                localStorage.getItem("starlink-for-you-v1")
+            ),
             null,
             "Logout must clear TV preferences before another account signs in"
         );
