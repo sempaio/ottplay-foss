@@ -344,6 +344,19 @@ async function run(platform, mode = "managed") {
                 await page.evaluate(() => JSON.parse(localStorage.getItem("starlink-for-you-v1")).interests[0]),
                 "futebol"
             );
+            if (open) await shot("05-paravoce-samsung");
+            assert(
+                (await page.locator("#starlink-for-you-categories button").count()) > 0,
+                "Samsung home should expose real categories loaded from the chosen source"
+            );
+            await page.locator("#starlink-for-you-search").fill(
+                personal ? "Original live" : "Canal de validação"
+            );
+            assert(
+                await page.locator("#starlink-for-you-results [data-channel-id]").count(),
+                "Matching fixture channel should appear in home search"
+            );
+            await page.locator("#starlink-for-you-recommendations").click();
             await page.locator("#starlink-for-you-close").click();
             await preferences.waitFor({ state: "hidden" });
         } else {
@@ -387,6 +400,20 @@ async function run(platform, mode = "managed") {
                     "/series/fixture-user/fixture-pass/81.mp4"
                 )
             );
+            if (platform === "samsung") {
+                await page.locator("#starlink-for-you-launch").click();
+                await page.locator("#starlink-for-you-movies").click();
+                await page.waitForFunction(() =>
+                    Array.isArray(window.mediaRecords) &&
+                    window.mediaRecords.some((row) => row.title === "Original movie")
+                );
+                await page.locator("#starlink-for-you-launch").click();
+                await page.locator("#starlink-for-you-series").click();
+                await page.waitForFunction(() =>
+                    Array.isArray(window.mediaRecords) &&
+                    window.mediaRecords.some((row) => row.title === "Original series")
+                );
+            }
 
             assert.equal(
                 await page.evaluate(

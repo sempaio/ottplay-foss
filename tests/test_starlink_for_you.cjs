@@ -120,3 +120,156 @@ test("skipping setup persists a neutral opt-out until the TV account is reset", 
     assert.equal(second.getInterests().length, 0);
     dom.window.close();
 });
+
+test("Samsung Xtream shortcuts open original movie and series folders, never custom streams", () => {
+    const dom = new JSDOM("<!doctype html><body></body>", { url: "https://tv.invalid" });
+    const w = dom.window;
+    w.STARLINK_TV_CONFIG = { mode: "open", platform: "samsung" };
+    w.commandChannelsReady = true;
+    const paths = [];
+    w.mediaList = (target) => paths.push(target);
+    const view = create(w);
+    view.setAdmission(true);
+    w.document.getElementById("starlink-for-you-movies").click();
+    assert.deepEqual(JSON.parse(JSON.stringify(paths)), [{ kind: "vod", name: "Filmes" }]);
+    assert.equal(w.document.getElementById("starlink-for-you-panel").hidden, true);
+    view.open();
+    w.document.getElementById("starlink-for-you-series").click();
+    assert.deepEqual(JSON.parse(JSON.stringify(paths)), [
+        { kind: "vod", name: "Filmes" },
+        { kind: "series", name: "Séries" }
+    ]);
+    dom.window.close();
+});
+
+test("Samsung managed M3U does not offer Xtream-only folders", () => {
+    const dom = new JSDOM("<!doctype html><body></body>", { url: "https://tv.invalid" });
+    dom.window.STARLINK_TV_CONFIG = { mode: "managed", platform: "samsung" };
+    const view = create(dom.window);
+    view.setAdmission(true);
+    assert.equal(dom.window.document.getElementById("starlink-for-you-movies").hidden, true);
+    assert.equal(dom.window.document.getElementById("starlink-for-you-series").hidden, true);
+    dom.window.close();
+});
+
+test("catalog category browsing selects real channel position, not recommendation position", () => {
+    const dom = new JSDOM("<!doctype html><body></body>", { url: "https://tv.invalid" });
+    const w = dom.window;
+    w.STARLINK_TV_CONFIG = { mode: "open", platform: "samsung" };
+    w.commandChannelsReady = true;
+    w.channels = {
+        101: { ch_id: 101, channel_name: "Canal A" },
+        102: { ch_id: 102, channel_name: "Canal B" },
+        103: { ch_id: 103, channel_name: "Canal C" }
+    };
+    w.catsArray = ["Notícias", "Esportes"];
+    w.cats = { "Notícias": [101], "Esportes": [102, 103] };
+    let selected = null;
+    w.setCurrent = (cat, idx) => selected = [cat, idx];
+    const view = create(w);
+    view.setAdmission(true);
+    const selectedCategory = w.document.querySelector('[data-category="Esportes"]');
+    selectedCategory.focus();
+    selectedCategory.click();
+    assert.equal(w.document.activeElement, selectedCategory,
+        "Remote focus should remain on the selected category");
+    const cards = w.document.querySelectorAll(".starlink-foryou-channel");
+    assert.equal(cards.length, 2);
+    assert.equal(cards[0].getAttribute("data-channel-id"), "102");
+    cards[1].click();
+    assert.deepEqual(selected, [1, 1]);
+    dom.window.close();
+});
+
+test("channel search filters visible non-adult channels without fetching remote content", () => {
+    const dom = new JSDOM("<!doctype html><body></body>", { url: "https://tv.invalid" });
+    const w = dom.window;
+    w.STARLINK_TV_CONFIG = { mode: "open", platform: "samsung" };
+    w.commandChannelsReady = true;
+    w.channels = {
+        4: { ch_id: 4, channel_name: "Filme Ação" },
+        5: { ch_id: 5, channel_name: "Filme secreto", adult: 1 },
+        6: { ch_id: 6, channel_name: "Jornal" }
+    };
+    w.catsArray = ["Filmes"];
+    w.cats = { Filmes: [4, 5, 6] };
+    const view = create(w);
+    view.setAdmission(true);
+    const input = w.document.getElementById("starlink-for-you-search");
+    input.value = "filme";
+    input.dispatchEvent(new w.Event("input", { bubbles: true }));
+    const cards = w.document.querySelectorAll(".starlink-foryou-channel");
+    assert.deepEqual(Array.from(cards, x => x.getAttribute("data-channel-id")), ["4"]);
+    dom.window.close();
+});
+
+test("recommendations do not expose adult rows even when names match preferences", () => {
+    const results = rankChannels({
+        10: { ch_id: 10, channel_name: "Filmes adultos", adult: 1 },
+        11: { ch_id: 11, channel_name: "Cinema Popular", adult: 0 }
+    }, ["filmes"], []);
+    assert.equal(results.some(x => x.id === 10), false);
+});
+
+test("duplicate channel placed in two groups keeps the explicitly selected category", () => {
+    const dom = new JSDOM("<!doctype html><body></body>", { url: "https://tv.invalid" });
+    const w = dom.window;
+    w.STARLINK_TV_CONFIG = { mode: "open", platform: "samsung" };
+    w.commandChannelsReady = true;
+    w.channels = { 55: { ch_id: 55, channel_name: "Canal Duplicado" } };
+    w.catsArray = ["Todos", "Infantil"];
+    w.cats = { Todos: [55], Infantil: [55] };
+    const played = [];
+    w.setCurrent = (cat, index) => played.push([cat, index]);
+    const view = create(w);
+    view.setAdmission(true);
+    w.document.querySelector('[data-category="Infantil"]').click();
+    w.document.querySelector('[data-channel-id="55"]').click();
+    assert.deepEqual(played, [[1, 0]]);
+    dom.window.close();
+});
+
+test("categories appear when channel catalog becomes ready after onboarding opens", async () => {
+    const dom = new JSDOM("<!doctype html><body></body>", { url: "https://tv.invalid" });
+    const w = dom.window;
+    w.STARLINK_TV_CONFIG = { mode: "open", platform: "samsung" };
+    w.commandChannelsReady = false;
+    const view = create(w);
+    view.setAdmission(true);
+    assert.equal(w.document.querySelectorAll("[data-category]").length, 0);
+    w.commandChannelsReady = true;
+    w.channels = { 2: { ch_id: 2, channel_name: "Futebol Brasil" } };
+    w.catsArray = ["Esportes"];
+    w.cats = { Esportes: [2] };
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    assert.equal(w.document.querySelectorAll('[data-category="Esportes"]').length, 1);
+    w.document.querySelector('[data-category="Esportes"]').click();
+    assert.equal(w.document.querySelectorAll('[data-channel-id="2"]').length, 1);
+    view.setAdmission(false);
+    dom.window.close();
+});
+
+test("M3U channel records without ch_id use the catalog map key for lookup and playback", () => {
+    const catalog = { 788: { channel_name: "Canal de validação" } };
+    const recommendations = rankChannels(catalog, ["desenhos"], []);
+    assert.equal(recommendations.length, 0);
+    const dom = new JSDOM("<!doctype html><body></body>", { url: "https://tv.invalid" });
+    const w = dom.window;
+    w.STARLINK_TV_CONFIG = { mode: "managed", platform: "samsung" };
+    w.commandChannelsReady = true;
+    w.channels = catalog;
+    w.catsArray = ["Validação"];
+    w.cats = { "Validação": [788] };
+    let played = null;
+    w.setCurrent = (category, index) => played = [category, index];
+    const view = create(w);
+    view.setAdmission(true);
+    const search = w.document.getElementById("starlink-for-you-search");
+    search.value = "valida";
+    search.dispatchEvent(new w.Event("input", { bubbles: true }));
+    const button = w.document.querySelector('[data-channel-id="788"]');
+    assert.ok(button, "Channel without embedded ch_id must be searchable");
+    button.click();
+    assert.deepEqual(played, [0, 0]);
+    dom.window.close();
+});
