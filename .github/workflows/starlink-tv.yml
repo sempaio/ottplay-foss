@@ -2,7 +2,7 @@ name: STARLINK TV isolated candidate
 on:
   workflow_dispatch:
   push:
-    branches: ['starlink/tv-generico-m81', 'starlink/tv-pessoal-m81', 'starlink/samsung-store-generic']
+    branches: ['starlink/tv-generico-m81', 'starlink/tv-pessoal-m81', 'starlink/samsung-store-generic', 'feat/m81-eco-01-samsung-paravoce-20261106']
 permissions:
   contents: read
 jobs:
