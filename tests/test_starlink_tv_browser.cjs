@@ -51,6 +51,7 @@ async function run(platform, mode = "managed") {
         });
         let configured = false,
             revision = "empty",
+            failNextXtreamAuth = false,
             sourceRequests = 0;
         const unexpected = [],
             errors = [];
@@ -129,6 +130,11 @@ async function run(platform, mode = "managed") {
                         "fixture-pass"
                     );
                     const action = url.searchParams.get("action");
+                    if (action === null && failNextXtreamAuth) {
+                        failNextXtreamAuth = false;
+                        await route.abort("failed");
+                        return;
+                    }
                     const responses = {
                         get_live_categories: [
                             {
@@ -335,6 +341,47 @@ async function run(platform, mode = "managed") {
         await page.waitForFunction(() => window.commandChannelsReady === true, {
             timeout: 20000,
         });
+        if (platform === "samsung") {
+            const preferences = page.locator("#starlink-for-you-panel");
+            await preferences.waitFor({ state: "visible" });
+            await page.locator('[data-interest="futebol"]').click();
+            await page.locator("#starlink-for-you-save").click();
+            await preferences.waitFor({ state: "hidden" });
+            await page.locator("#starlink-for-you-launch").click();
+            await preferences.waitFor({ state: "visible" });
+            assert.equal(
+                await page.evaluate(
+                    () =>
+                        JSON.parse(localStorage.getItem("starlink-for-you-v1"))
+                            .interests[0]
+                ),
+                "futebol"
+            );
+            if (open) await shot("05-paravoce-samsung");
+            assert(
+                (await page
+                    .locator("#starlink-for-you-categories button")
+                    .count()) > 0,
+                "Samsung home should expose real categories loaded from the chosen source"
+            );
+            await page
+                .locator("#starlink-for-you-search")
+                .fill(personal ? "Original live" : "Canal de validação");
+            assert(
+                await page
+                    .locator("#starlink-for-you-results [data-channel-id]")
+                    .count(),
+                "Matching fixture channel should appear in home search"
+            );
+            await page.locator("#starlink-for-you-recommendations").click();
+            await page.locator("#starlink-for-you-close").click();
+            await preferences.waitFor({ state: "hidden" });
+        } else {
+            assert.equal(
+                await page.locator("#starlink-for-you-root").count(),
+                0
+            );
+        }
         assert.equal(
             await page.evaluate(() => window.__ottActiveProviderDriver.id),
             personal ? "xtream" : "m3u"
@@ -373,6 +420,26 @@ async function run(platform, mode = "managed") {
                     "/series/fixture-user/fixture-pass/81.mp4"
                 )
             );
+            if (platform === "samsung") {
+                await page.locator("#starlink-for-you-launch").click();
+                await page.locator("#starlink-for-you-movies").click();
+                await page.waitForFunction(
+                    () =>
+                        Array.isArray(window.mediaRecords) &&
+                        window.mediaRecords.some(
+                            (row) => row.title === "Original movie"
+                        )
+                );
+                await page.locator("#starlink-for-you-launch").click();
+                await page.locator("#starlink-for-you-series").click();
+                await page.waitForFunction(
+                    () =>
+                        Array.isArray(window.mediaRecords) &&
+                        window.mediaRecords.some(
+                            (row) => row.title === "Original series"
+                        )
+                );
+            }
 
             assert.equal(
                 await page.evaluate(
@@ -380,6 +447,33 @@ async function run(platform, mode = "managed") {
                         JSON.stringify(localStorage).includes("fixture-pass") ||
                         JSON.stringify(sessionStorage).includes("fixture-pass")
                 ),
+                false
+            );
+        }
+        if (open) {
+            // The TV may lose TLS during periodic revalidation. Retry must remain
+            // available without persisting credentials or allowing stale playback.
+            failNextXtreamAuth = true;
+            await page.evaluate(() =>
+                document.getElementById("starlink-retry").click()
+            );
+            await page.locator("#starlink-retry").waitFor({ state: "visible" });
+            assert.equal(
+                await page.evaluate(() => window.__starlinkTv.admitted()),
+                false
+            );
+            assert.equal(
+                await page.locator("#starlink-form").isVisible(),
+                false
+            );
+            assert.equal(
+                await page.locator("#starlink-password").inputValue(),
+                ""
+            );
+            await page.locator("#starlink-retry").click();
+            await page.waitForFunction(() => window.__starlinkTv.admitted());
+            assert.equal(
+                await page.locator("#starlink-connect").isVisible(),
                 false
             );
         }
@@ -406,6 +500,13 @@ async function run(platform, mode = "managed") {
         assert.equal(
             await page.evaluate(() => localStorage.getItem("m3um3uArr")),
             null
+        );
+        assert.equal(
+            await page.evaluate(() =>
+                localStorage.getItem("starlink-for-you-v1")
+            ),
+            null,
+            "Logout must clear TV preferences before another account signs in"
         );
         assert.equal(
             errors.length,

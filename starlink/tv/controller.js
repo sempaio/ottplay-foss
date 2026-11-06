@@ -351,6 +351,16 @@
             admitted: function () {
                 return ready && validSession(session);
             },
+            // A verified in-memory Xtream account can retry a temporary network error.
+            // Never re-admit playback until the provider validates it again.
+            canRetry: function () {
+                return (
+                    accountMode &&
+                    !!account &&
+                    revision !== "" &&
+                    validSession(session)
+                );
+            },
             dispose: cancel,
             login: login,
             logout: logout,

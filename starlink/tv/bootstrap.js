@@ -14,7 +14,8 @@
         accountButton,
         status,
         form,
-        password;
+        password,
+        forYou;
     var sessionKey = "starlink-tv-session-v1",
         deviceKey = "starlink-tv-device-v1";
     var messages = {
@@ -23,7 +24,7 @@
             "Conta bloqueada no painel (HTTP 403). Fale com o atendimento.",
         connecting: "Conectando sua TV…",
         connection_error:
-            "A TV não conseguiu concluir a conexão HTTPS com o painel. Verifique internet, data e hora.",
+            "Falha temporária ao conectar ao servidor. O STARLINK tentará novamente; confira a rede, o endereço e a hora da TV.",
         credentials_error:
             "O painel recusou usuário ou senha IPTV (HTTP 401). Confira maiúsculas e minúsculas.",
         empty_error: "Preencha usuário e senha antes de conectar.",
@@ -91,6 +92,8 @@
         var id = w.localStorage.getItem(deviceKey);
         if (typeof w.stbClearAllItems === "function") w.stbClearAllItems();
         else w.localStorage.clear();
+        // This setting is not a provider key and must not follow a new login.
+        w.localStorage.removeItem("starlink-for-you-v1");
         if (id) w.localStorage.setItem(deviceKey, id);
         w.stbSetItem("ottplayprov", "");
         // Retire in-memory upstream library state as well as persisted data.
@@ -99,15 +102,24 @@
     function state(value) {
         status.textContent = messages[value] || messages.connection_error;
         var playing = value === "ready";
+        if (config.platform === "samsung" && w.StarlinkForYou) {
+            if (!forYou) forYou = w.StarlinkForYou.create(w);
+            forYou.setAdmission(playing);
+        }
         overlay.hidden = playing;
         accountButton.hidden = !playing;
         if (config.mode === "open") {
             var connected = controller && controller.admitted();
-            document.getElementById("starlink-retry").hidden = !connected;
-            document.getElementById("starlink-logout").hidden = !connected;
+            var canRetry = controller && controller.canRetry();
+            document.getElementById("starlink-retry").hidden =
+                !connected && !canRetry;
+            document.getElementById("starlink-logout").hidden =
+                !connected && !canRetry;
         }
         document.getElementById("starlink-back").hidden = !playing;
-        form.hidden = value !== "login" && value.indexOf("_error") === -1;
+        form.hidden =
+            (value !== "login" && value.indexOf("_error") === -1) ||
+            (config.mode === "open" && controller && controller.canRetry());
         if (!playing && form.hidden)
             document.getElementById("starlink-retry").focus();
         else if (!playing)

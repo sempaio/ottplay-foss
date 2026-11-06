@@ -10,7 +10,7 @@ function stage(platform, apiBase, mode = "managed") {
         throw new Error("Invalid catalog mode");
     const personal = mode === "account";
     const open = mode === "open";
-    const version = open ? "0.2.0" : personal ? "0.1.2" : "0.1.0";
+    const version = open ? "0.2.2" : personal ? "0.1.2" : "0.1.0";
     const providerFile =
         personal || open ? "provider-xtream.js" : "provider-m3u.js";
     if (!["samsung", "lg"].includes(platform))
@@ -60,19 +60,23 @@ function stage(platform, apiBase, mode = "managed") {
         "controller.js",
         "bootstrap.js",
         "theme.css",
+        "for-you.css",
+        "for-you.js",
         "logo.png",
-    ])
+    ]) {
+        if (platform !== "samsung" && /^for-you\./.test(name)) continue;
         fs.copyFileSync(
             path.join(root, "starlink/tv", name),
             path.join(out, "starlink", name)
         );
+    }
     const config = {
         apiBase: open ? "" : api.origin,
         contentBundled: false,
         mode,
         platform,
         version: open
-            ? "0.2.0-store-candidate"
+            ? "0.2.2-store-candidate"
             : personal
               ? "0.1.2-personal-preview"
               : "0.1.0-preview",
@@ -91,6 +95,13 @@ function stage(platform, apiBase, mode = "managed") {
             '<script src="./starlink/config.js"></script>\n<script src="./starlink/controller.js"></script>\n' +
             '<script src="./starlink/bootstrap.js"></script>\n</head>'
     );
+    if (platform === "samsung") {
+        html = html.replace(
+            "</head>",
+            '<link rel="stylesheet" href="./starlink/for-you.css">\n' +
+                '<script src="./starlink/for-you.js"></script>\n</head>'
+        );
+    }
     html = html.replace(/(src|href)="\//g, '$1="./');
     const hostPattern =
         /var host = window\.location\.origin \|\|\s*\(window\.location\.host \? window\.location\.protocol \+ "\/\/" \+ window\.location\.host : "http:\/\/localhost:8080"\);/;

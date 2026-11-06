@@ -2,15 +2,15 @@ name: STARLINK TV isolated candidate
 on:
   workflow_dispatch:
   push:
-    branches: ['starlink/tv-generico-m81', 'starlink/tv-pessoal-m81', 'starlink/samsung-store-generic']
+    branches: ['starlink/tv-generico-m81', 'starlink/tv-pessoal-m81', 'starlink/samsung-store-generic', 'feat/m81-eco-01-samsung-paravoce-20261106']
 permissions:
   contents: read
 jobs:
   candidate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
           cache: npm
@@ -24,7 +24,7 @@ jobs:
       - run: node scripts/stage-starlink-tv.cjs samsung unused open
       - run: node scripts/stage-starlink-tv.cjs lg
       - run: node scripts/stage-starlink-tv.cjs samsung https://panel.taila5c5c2.ts.net account
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: STARLINK-TV-unsigned-candidates
           path: build/starlink-tv/
