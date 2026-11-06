@@ -51,6 +51,7 @@ async function run(platform, mode = "managed") {
         });
         let configured = false,
             revision = "empty",
+            failNextXtreamAuth = false,
             sourceRequests = 0;
         const unexpected = [],
             errors = [];
@@ -129,6 +130,11 @@ async function run(platform, mode = "managed") {
                         "fixture-pass"
                     );
                     const action = url.searchParams.get("action");
+                    if (action === null && failNextXtreamAuth) {
+                        failNextXtreamAuth = false;
+                        await route.abort("failed");
+                        return;
+                    }
                     const responses = {
                         get_live_categories: [
                             {
@@ -438,6 +444,33 @@ async function run(platform, mode = "managed") {
                         JSON.stringify(localStorage).includes("fixture-pass") ||
                         JSON.stringify(sessionStorage).includes("fixture-pass")
                 ),
+                false
+            );
+        }
+        if (open) {
+            // The TV may lose TLS during periodic revalidation. Retry must remain
+            // available without persisting credentials or allowing stale playback.
+            failNextXtreamAuth = true;
+            await page.evaluate(() =>
+                document.getElementById("starlink-retry").click()
+            );
+            await page.locator("#starlink-retry").waitFor({ state: "visible" });
+            assert.equal(
+                await page.evaluate(() => window.__starlinkTv.admitted()),
+                false
+            );
+            assert.equal(
+                await page.locator("#starlink-form").isVisible(),
+                false
+            );
+            assert.equal(
+                await page.locator("#starlink-password").inputValue(),
+                ""
+            );
+            await page.locator("#starlink-retry").click();
+            await page.waitForFunction(() => window.__starlinkTv.admitted());
+            assert.equal(
+                await page.locator("#starlink-connect").isVisible(),
                 false
             );
         }

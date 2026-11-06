@@ -24,7 +24,7 @@
             "Conta bloqueada no painel (HTTP 403). Fale com o atendimento.",
         connecting: "Conectando sua TV…",
         connection_error:
-            "A TV não conseguiu concluir a conexão HTTPS com o painel. Verifique internet, data e hora.",
+            "Falha temporária ao conectar ao servidor. O STARLINK tentará novamente; confira a rede, o endereço e a hora da TV.",
         credentials_error:
             "O painel recusou usuário ou senha IPTV (HTTP 401). Confira maiúsculas e minúsculas.",
         empty_error: "Preencha usuário e senha antes de conectar.",
@@ -110,11 +110,16 @@
         accountButton.hidden = !playing;
         if (config.mode === "open") {
             var connected = controller && controller.admitted();
-            document.getElementById("starlink-retry").hidden = !connected;
-            document.getElementById("starlink-logout").hidden = !connected;
+            var canRetry = controller && controller.canRetry();
+            document.getElementById("starlink-retry").hidden =
+                !connected && !canRetry;
+            document.getElementById("starlink-logout").hidden =
+                !connected && !canRetry;
         }
         document.getElementById("starlink-back").hidden = !playing;
-        form.hidden = value !== "login" && value.indexOf("_error") === -1;
+        form.hidden =
+            (value !== "login" && value.indexOf("_error") === -1) ||
+            (config.mode === "open" && controller && controller.canRetry());
         if (!playing && form.hidden)
             document.getElementById("starlink-retry").focus();
         else if (!playing)

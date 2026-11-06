@@ -328,6 +328,34 @@ test("personal catalog validates Xtream directly and keeps credentials only in m
     assert.equal(r.owner.admitted(), false);
     assert.equal(r.stored(), null);
 });
+test("transient Xtream connection loss offers an in-session retry without retyping passwords", () => {
+    const r = rig(null, "open");
+    r.owner.start();
+    r.owner.login(
+        "fixture-user",
+        "secret-only-in-memory",
+        "https://panel.invalid"
+    );
+    assert.equal(r.owner.canRetry(), false);
+    r.requests.at(-1).done(200, { user_info: { auth: 1, status: "Active" } });
+    assert.equal(r.owner.admitted(), true);
+    r.timer().fn();
+    r.requests.at(-1).done(0, null);
+    assert.equal(r.states.at(-1), "connection_error");
+    assert.equal(r.owner.admitted(), false);
+    assert.equal(r.owner.canRetry(), true);
+    assert.equal(r.timer().delay, 30000);
+    r.owner.refresh(true);
+    assert.equal(r.requests.length, 3);
+    r.requests.at(-1).done(200, { user_info: { auth: 1, status: "Active" } });
+    assert.equal(r.owner.admitted(), true);
+    assert.equal(r.owner.canRetry(), true);
+    assert.equal(r.applied.length, 2);
+    r.owner.logout();
+    assert.equal(r.owner.canRetry(), false);
+    assert.equal(r.owner.accountSource(), null);
+});
+
 test("personal restart requires login rather than persisting Xtream credentials", () => {
     const r = rig(saved, "account");
     r.owner.start();
