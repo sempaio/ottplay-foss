@@ -1,6 +1,8 @@
 name: STARLINK TV isolated candidate
 on:
   workflow_dispatch:
+  pull_request:
+    branches: ['starlink/samsung-store-generic']
   push:
     branches: ['starlink/tv-generico-m81', 'starlink/tv-pessoal-m81', 'starlink/samsung-store-generic']
 permissions:

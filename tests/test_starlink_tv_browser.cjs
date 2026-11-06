@@ -335,6 +335,20 @@ async function run(platform, mode = "managed") {
         await page.waitForFunction(() => window.commandChannelsReady === true, {
             timeout: 20000,
         });
+        if (platform === "samsung") {
+            const preferences = page.locator("#starlink-for-you-panel");
+            await preferences.waitFor({ state: "visible" });
+            await page.locator('[data-interest="futebol"]').click();
+            await page.locator("#starlink-for-you-save").click();
+            assert.equal(
+                await page.evaluate(() => JSON.parse(localStorage.getItem("starlink-for-you-v1")).interests[0]),
+                "futebol"
+            );
+            await page.locator("#starlink-for-you-close").click();
+            await preferences.waitFor({ state: "hidden" });
+        } else {
+            assert.equal(await page.locator("#starlink-for-you-root").count(), 0);
+        }
         assert.equal(
             await page.evaluate(() => window.__ottActiveProviderDriver.id),
             personal ? "xtream" : "m3u"
@@ -406,6 +420,11 @@ async function run(platform, mode = "managed") {
         assert.equal(
             await page.evaluate(() => localStorage.getItem("m3um3uArr")),
             null
+        );
+        assert.equal(
+            await page.evaluate(() => localStorage.getItem("starlink-for-you-v1")),
+            null,
+            "Logout must clear TV preferences before another account signs in"
         );
         assert.equal(
             errors.length,

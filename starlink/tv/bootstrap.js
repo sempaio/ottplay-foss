@@ -14,7 +14,8 @@
         accountButton,
         status,
         form,
-        password;
+        password,
+        forYou;
     var sessionKey = "starlink-tv-session-v1",
         deviceKey = "starlink-tv-device-v1";
     var messages = {
@@ -91,6 +92,8 @@
         var id = w.localStorage.getItem(deviceKey);
         if (typeof w.stbClearAllItems === "function") w.stbClearAllItems();
         else w.localStorage.clear();
+        // This setting is not a provider key and must not follow a new login.
+        w.localStorage.removeItem("starlink-for-you-v1");
         if (id) w.localStorage.setItem(deviceKey, id);
         w.stbSetItem("ottplayprov", "");
         // Retire in-memory upstream library state as well as persisted data.
@@ -99,6 +102,10 @@
     function state(value) {
         status.textContent = messages[value] || messages.connection_error;
         var playing = value === "ready";
+        if (config.platform === "samsung" && w.StarlinkForYou) {
+            if (!forYou) forYou = w.StarlinkForYou.create(w);
+            forYou.setAdmission(playing);
+        }
         overlay.hidden = playing;
         accountButton.hidden = !playing;
         if (config.mode === "open") {

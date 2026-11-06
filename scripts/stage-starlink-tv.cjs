@@ -60,12 +60,16 @@ function stage(platform, apiBase, mode = "managed") {
         "controller.js",
         "bootstrap.js",
         "theme.css",
+        "for-you.css",
+        "for-you.js",
         "logo.png",
-    ])
+    ]) {
+        if (platform !== "samsung" && /^for-you\./.test(name)) continue;
         fs.copyFileSync(
             path.join(root, "starlink/tv", name),
             path.join(out, "starlink", name)
         );
+    }
     const config = {
         apiBase: open ? "" : api.origin,
         contentBundled: false,
@@ -91,6 +95,13 @@ function stage(platform, apiBase, mode = "managed") {
             '<script src="./starlink/config.js"></script>\n<script src="./starlink/controller.js"></script>\n' +
             '<script src="./starlink/bootstrap.js"></script>\n</head>'
     );
+    if (platform === "samsung") {
+        html = html.replace(
+            "</head>",
+            '<link rel="stylesheet" href="./starlink/for-you.css">\n' +
+                '<script src="./starlink/for-you.js"></script>\n</head>'
+        );
+    }
     html = html.replace(/(src|href)="\//g, '$1="./');
     const hostPattern =
         /var host = window\.location\.origin \|\|\s*\(window\.location\.host \? window\.location\.protocol \+ "\/\/" \+ window\.location\.host : "http:\/\/localhost:8080"\);/;
