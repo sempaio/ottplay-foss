@@ -64,7 +64,10 @@ export function detectDevice(): string {
  * adapter and calls startPlayer(). detectDevice() always returns a nonempty route.
  */
 
-export let host = (window as any).__starlinkTvRoot || window.location.origin || "http://localhost:8080";
+export let host =
+    (window as any).__starlinkTvRoot ||
+    window.location.origin ||
+    "http://localhost:8080";
 export let __cv = (window as any).__cv || "local";
 export let __av = (window as any).__av || "local";
 export let dnt = false;

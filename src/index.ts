@@ -1891,12 +1891,13 @@ function startupError(
  * Edge case: Wrapped in try/catch — exceptions are displayed in #launch.
  */
 export function startPlayer(): void {
+    // Recover a broken settings journal before touching browser globals or login.
+    if (showSettingsRecovery()) return;
     var managedTv = (window as any).__starlinkTv;
     if (managedTv && !managedTv.admitted()) {
         managedTv.connect(startPlayer);
         return;
     }
-    if (showSettingsRecovery()) return;
     // Cap/Tauri boot leaves hostUrl ""; language packs + icons resolve via
     // absolute "/locales/…". Prefer location.origin when present so nested
     // Cap paths and capacitor://localhost match CSS/bundle host.
