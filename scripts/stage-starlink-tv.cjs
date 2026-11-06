@@ -10,7 +10,7 @@ function stage(platform, apiBase, mode = "managed") {
         throw new Error("Invalid catalog mode");
     const personal = mode === "account";
     const open = mode === "open";
-    const version = open ? "0.2.1" : personal ? "0.1.2" : "0.1.0";
+    const version = open ? "0.2.2" : personal ? "0.1.2" : "0.1.0";
     const providerFile =
         personal || open ? "provider-xtream.js" : "provider-m3u.js";
     if (!["samsung", "lg"].includes(platform))
@@ -76,7 +76,7 @@ function stage(platform, apiBase, mode = "managed") {
         mode,
         platform,
         version: open
-            ? "0.2.1-store-candidate"
+            ? "0.2.2-store-candidate"
             : personal
               ? "0.1.2-personal-preview"
               : "0.1.0-preview",

@@ -480,7 +480,7 @@
             }
             renderCategories();
             renderResults();
-            status.textContent = "Preferências salvas nesta TV.";
+            close();
         };
         doc.addEventListener(
             "keydown",
@@ -491,6 +491,17 @@
                     event.preventDefault();
                     event.stopImmediatePropagation();
                     close();
+                    return;
+                }
+                if (code === 13) {
+                    // Older Samsung Tizen browsers do not consistently synthesize
+                    // a click for focused buttons when OK/Enter is pressed.
+                    var active = doc.activeElement;
+                    if (active && active.tagName === "BUTTON") {
+                        event.preventDefault();
+                        event.stopImmediatePropagation();
+                        active.click();
+                    }
                     return;
                 }
                 if (

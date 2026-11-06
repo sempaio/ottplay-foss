@@ -346,6 +346,9 @@ async function run(platform, mode = "managed") {
             await preferences.waitFor({ state: "visible" });
             await page.locator('[data-interest="futebol"]').click();
             await page.locator("#starlink-for-you-save").click();
+            await preferences.waitFor({ state: "hidden" });
+            await page.locator("#starlink-for-you-launch").click();
+            await preferences.waitFor({ state: "visible" });
             assert.equal(
                 await page.evaluate(
                     () =>

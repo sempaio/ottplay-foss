@@ -136,6 +136,55 @@ test("TV overlay is optional, local and uses native setCurrent for playback", ()
     dom.window.close();
 });
 
+test("saving interests exits onboarding and Samsung remote OK and Back work", () => {
+    const dom = new JSDOM(
+        "<!doctype html><body><button id='before'>Before</button></body>",
+        {
+            url: "https://tv.invalid",
+        }
+    );
+    const w = dom.window;
+    w.STARLINK_TV_CONFIG = { mode: "open", platform: "samsung" };
+    const view = create(w);
+    view.setAdmission(true);
+    const panel = w.document.getElementById("starlink-for-you-panel");
+    assert.equal(panel.hidden, false);
+    const choice = w.document.querySelector('[data-interest="animes"]');
+    assert.ok(choice, "Anime choice should be present");
+    choice.focus();
+    choice.dispatchEvent(
+        new w.KeyboardEvent("keydown", {
+            bubbles: true,
+            keyCode: 13,
+        })
+    );
+    assert.equal(choice.getAttribute("aria-pressed"), "true");
+    const saveButton = w.document.getElementById("starlink-for-you-save");
+    saveButton.focus();
+    saveButton.dispatchEvent(
+        new w.KeyboardEvent("keydown", {
+            bubbles: true,
+            keyCode: 13,
+        })
+    );
+    assert.equal(
+        panel.hidden,
+        true,
+        "Saving must enter catalog, not trap user in preferences"
+    );
+    assert.ok(view.getInterests().includes("animes"));
+    view.open();
+    assert.equal(panel.hidden, false);
+    w.document.dispatchEvent(
+        new w.KeyboardEvent("keydown", {
+            bubbles: true,
+            keyCode: 10009,
+        })
+    );
+    assert.equal(panel.hidden, true, "Samsung Return must close onboarding");
+    dom.window.close();
+});
+
 test("user preferences are cleared with the app local sandbox and not sent anywhere", () => {
     const dom = new JSDOM("<!doctype html><body></body>", {
         url: "https://tv.invalid",
