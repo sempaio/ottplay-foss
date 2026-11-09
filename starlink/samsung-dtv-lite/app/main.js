@@ -2,7 +2,7 @@
 'use strict';
 var BASE='https://panel.taila5c5c2.ts.net';
 var core=w.StarlinkLiteCore;
-var state={username:'',password:'',categories:[],channels:[],visible:[],culture:null,current:null,events:0,lastTime:-1,playStart:0,playing:false,logged:false};
+var state={username:'',password:'',categories:[],channels:[],visible:[],culture:null,current:null,events:0,lastTime:-1,playStart:0,playing:false,logged:false,generation:0};
 var av=w.webapis&&w.webapis.avplay;
 function byId(id){return d.getElementById(id);}
 function text(id,msg){byId(id).textContent=String(msg);}
@@ -97,15 +97,19 @@ function showCategory(id){
  },'channel');
 }
 function stop(){
+ // Invalida callbacks de prepareAsync e eventos AVPlay de transmissões anteriores.
+ state.generation++;
+ state.playing=false;
  if(!av)return;
  try{av.stop();}catch(e){}
  try{av.close();}catch(e){}
- state.playing=false;
 }
 function videoStatus(msg){text('video-status',msg);console.log('STARLINK_AVPLAY '+msg);}
 function play(item,publicSample){
  if(!state.logged)return;
  stop();state.current=item;state.events=0;state.lastTime=-1;state.playStart=Date.now();state.playing=true;
+ var playbackGeneration=state.generation;
+ function isCurrentPlayback(){return state.playing&&state.logged&&state.generation===playbackGeneration;}
  page('player-screen');
  text('now-playing',publicSample?'Vídeo público de diagnóstico':'M81 · '+String(item.name||'Canal'));
  text('video-timer','Aguardando quadros e progresso temporal...');
@@ -118,18 +122,23 @@ function play(item,publicSample){
   av.open(url);
   av.setDisplayRect(0,0,1920,1080);
   av.setListener({
-   onbufferingstart:function(){videoStatus('Carregando vídeo...');},
-   onbufferingprogress:function(percent){if(percent%20===0)videoStatus('Buffer '+percent+'%');},
-   onbufferingcomplete:function(){videoStatus('Buffer concluído');},
+   onbufferingstart:function(){if(isCurrentPlayback())videoStatus('Carregando vídeo...');},
+   onbufferingprogress:function(percent){if(isCurrentPlayback()&&percent%20===0)videoStatus('Buffer '+percent+'%');},
+   onbufferingcomplete:function(){if(isCurrentPlayback())videoStatus('Buffer concluído');},
    oncurrentplaytime:function(ms){
+    if(!isCurrentPlayback())return;
     state.events++;
     if(ms>state.lastTime){state.lastTime=ms;text('video-timer','Tempo '+(ms/1000).toFixed(1)+' s · '+state.events+' eventos');videoStatus('Reprodução em andamento');}
    },
-   onstreamcompleted:function(){videoStatus('Vídeo concluído');},
-   onerror:function(err){videoStatus('Erro AVPlay: '+String(err));},
-   onerrormsg:function(err,msg){videoStatus('Erro AVPlay: '+String(err)+' '+String(msg));}
+   onstreamcompleted:function(){if(isCurrentPlayback())videoStatus('Vídeo concluído');},
+   onerror:function(err){if(isCurrentPlayback())videoStatus('Erro AVPlay: '+String(err));},
+   onerrormsg:function(err,msg){if(isCurrentPlayback())videoStatus('Erro AVPlay: '+String(err)+' '+String(msg));}
   });
-  av.prepareAsync(function(){try{av.play();videoStatus('Play acionado; verificando movimento...');}catch(err){videoStatus('Falha ao iniciar: '+err.message);}},function(err){videoStatus('Falha ao preparar vídeo: '+String(err));});
+  av.prepareAsync(function(){
+   if(!isCurrentPlayback())return;
+   try{av.play();if(isCurrentPlayback())videoStatus('Play acionado; verificando movimento...');}
+   catch(err){if(isCurrentPlayback())videoStatus('Falha ao iniciar: '+err.message);}
+  },function(err){if(isCurrentPlayback())videoStatus('Falha ao preparar vídeo: '+String(err));});
  }catch(err){videoStatus('Falha ao abrir transmissão: '+err.message);}
 }
 function back(){stop();page('catalog-screen');text('catalog-status','Pronto para selecionar outro canal.');}
@@ -142,6 +151,10 @@ byId('public-demo-button').onclick=function(){play({name:'Teste HLS público',st
 d.addEventListener('keydown',function(ev){
  if(state.playing&&(ev.keyCode===10009||ev.keyCode===27)){ev.preventDefault();back();}
  if(state.logged&&!state.playing&&ev.keyCode===406){logout();}
+},true);
+// O controle remoto Samsung pode enviar o botão Voltar como evento nativo Tizen.
+d.addEventListener('tizenhwkey',function(ev){
+ if(ev.keyName==='back'&&state.playing){if(ev.preventDefault)ev.preventDefault();back();}
 },true);
 w.__starlinkLiteQA={snapshot:function(){return {logged:state.logged,channels:state.channels.length,playing:state.playing,events:state.events,timeMs:state.lastTime,channel:state.current&&state.current.name};}};
 text('login-status','Digite sua conta M81. Servidor pré-configurado. Nenhuma senha é armazenada.');

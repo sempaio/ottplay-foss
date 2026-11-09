@@ -1,44 +1,51 @@
-# STARLINK DTV Samsung — QA 0.2.8 (M81 / Tizen)
+# STARLINK DTV Samsung — QA 0.2.9 (M81 / Tizen)
 
-**Status:** protótipo funcional de reprodução, ainda em homologação. Não é a versão final para loja Samsung.
+**Status:** aplicativo enxuto em homologação. Login, catálogo e reprodução HLS confirmados no emulador Tizen 10. **Não é versão final da loja Samsung.**
 
-Este aplicativo Tizen foi criado como alternativa enxuta ao OTT-play para isolar o login Xtream, o catálogo do M81 e a reprodução com o AVPlay nativo da Samsung.
+A QA 0.2.9 preserva o checkpoint QA 0.2.8 e corrige problemas de callbacks atrasados do Samsung AVPlay e navegação de retorno.
 
-## Validação realizada em 09/11/2026
+## Verificações executadas em 09/11/2026
 
-- Emulador Samsung Tizen 10: instância `t-0917-1`, dispositivo `emulator-26101`.
-- Aplicativo `STLTVL0010.StarlinkDTV` instalado e iniciado.
-- Login somente com usuário e senha; endereço do M81 pré-configurado.
-- Catálogo real M81 autenticado: 68 categorias e 1.685 canais no momento do teste.
-- **TV Brasil (720p)**: vídeo real exibido no emulador; AVPlay registrou 90,7 segundos e 88 eventos; quadros capturados com seis segundos de diferença tiveram mudança média de pixels RGB de aproximadamente 29/30/31. O usuário confirmou reprodução com pequenas travadas.
-- Vídeo HLS público de diagnóstico também exibiu movimento no emulador.
-- A TV Cultura chegou a exibir imagem, mas houve `PLAYER_ERROR_CONNECTION_FAILED`; uma fonte TV Globo Rio respondeu HTTP 403. Esses canais **não** foram aprovados.
+- Emulador Samsung Tizen 10, instância `t-0917-1` (`emulator-26101`); aplicativo `STLTVL0010.StarlinkDTV` instalado e iniciado.
+- Login com usuário e senha, sem pedir URL do servidor.
+- Catálogo Xtream M81 real carregado: cerca de **1.685 canais** e **67 categorias** no teste QA 0.2.9. Essas contagens são dinâmicas.
+- **TV Brasil (720p) reproduziu vídeo real em movimento** no emulador. Em uma captura, o AVPlay indicou cerca de 103,9 segundos e 165 eventos. Duas imagens, separadas por oito segundos, tiveram diferença média RGB de **26,19 / 27,67 / 31,19**, confirmando quadros visivelmente diferentes.
+- O checkpoint anterior QA 0.2.8 também foi observado reproduzindo após mais de **2.003 segundos**, com mais de 3.500 eventos, e com movimento confirmado por comparação de imagens.
+- O botão **Voltar aos canais** encerrou a tela de vídeo e exibiu o catálogo. O botão **Sair** retornou ao login com campos vazios, sem reiniciar o aplicativo.
+- A fonte Rede TV FHD apresentou `PLAYER_ERROR_CONNECTION_FAILED`; o aplicativo permaneceu aberto, e foi possível retornar à lista e iniciar o HLS público de diagnóstico, que demorou a carregar mas voltou a exibir imagem.
+- A tecla Esc do teclado no emulador **não foi validada como Back físico**: o controle de evento `tizenhwkey` passou em teste simulado, mas a confirmação por controle remoto de uma TV real continua pendente.
+
+## Correções QA 0.2.9
+
+- Cancela callbacks atrasados de `prepareAsync` após sair do player ou da conta, para impedir reprodução em segundo plano.
+- Ignora progresso, erros e eventos de um canal antigo depois que o usuário troca de transmissão.
+- Adiciona tratamento do evento nativo `tizenhwkey` com `keyName='back'`.
+- Mantém o AVPlay nativo e as transparências do player que permitiram renderização do vídeo.
+
+## Testes automatizados
+
+- `node tests/test-core.cjs` — valida autenticação, URL e seleção de canal.
+- `node tests/qa029-recovery.cjs` — cinco cenários de recuperação, com navegador Playwright e AVPlay simulado; **5/5 passaram**. Requer o pacote de desenvolvimento `playwright` disponível no ambiente de teste.
+- `node --check app/main.js` — sintaxe JavaScript verificada.
 
 ## Arquivos
 
-- `app/`: código-fonte HTML/CSS/JavaScript Tizen, ícone e manifesto `config.xml`.
-- `releases/STARLINKDTV-QA-0.2.8.wgt`: o pacote WGT assinado efetivamente instalado no emulador.
-- `tests/test-core.cjs`: verificações isoladas de autenticação, URL de transmissão e seleção do canal.
+- `app/` — fonte Tizen (HTML, CSS, JS, manifesto e ícone) da QA 0.2.9.
+- `releases/STARLINKDTV-QA-0.2.8.wgt` — checkpoint anterior preservado.
+- `releases/STARLINKDTV-QA-0.2.9.wgt` — WGT assinado e instalado no emulador.
+- `tests/` — testes sem credenciais reais.
 
-## Testes e compilação
+Para reconstruir um WGT, utilize uma pasta de staging limpa contendo apenas os arquivos de `app/`. Assine com um perfil autorizado para o dispositivo de destino; o WGT de QA pode não instalar em outra Samsung sem assinatura compatível.
 
-Para verificar a lógica com Node.js:
+## Limitações e próximos testes
 
-```sh
-node tests/test-core.cjs
-node --check app/main.js
-```
+1. A TV Brasil apresentou reprodução em movimento, mas ainda há relatos de pequenas travadas e demora inicial de buffer. Medir variações de rede/segmentos e estabilidade em sessões longas antes de otimizar.
+2. Confirmar navegação por controle remoto físico (setas, OK, Back), especialmente a entrega de evento Back no Tizen; o Esc do teclado do emulador não bastou para homologação.
+3. Adicionar navegação e busca de catálogo adequadas à TV, sem perder o fluxo de login e AVPlay que já funciona.
+4. Esta versão enxuta oferece **somente canais ao vivo**. Filmes, séries, capas, favoritos e personalização ainda não foram implementados neste aplicativo.
+5. A abertura automática da TV Brasil após login existe apenas para facilitar o teste; remover antes de distribuir.
+6. Não modificar servidor M81 ou Android para consertar falhas específicas do cliente Samsung.
 
-Para gerar um novo WGT, copie **somente** os seis arquivos de `app/` para uma pasta de staging limpa. No Tizen Studio, utilize um perfil de assinatura autorizado para o dispositivo; não inclua WGTs antigos dentro da pasta de staging.
+**Segurança:** nenhuma senha é embutida no código ou no WGT, e ela é descartada no logout. Não registrar nem compartilhar URLs autenticadas das transmissões.
 
-A assinatura da QA pode ser válida apenas para o emulador. **Não considere o WGT homologado para instalação em televisores reais ou para a loja Samsung.**
-
-## Limitações e próximos passos
-
-- A interface atual cobre login e **canais ao vivo**. Filmes, séries, capas e personalização ainda não foram implementados nesse aplicativo enxuto.
-- Ainda há travamentos perceptíveis no canal validado. Melhorar buffering, recuperação de falha, foco/navegação por controle remoto e tratamento de links de origem.
-- A revisão de QA inicia automaticamente o canal preferencial após o login para facilitar testes; isto deve ser revisto antes de publicar.
-- O aplicativo não incorpora credenciais no código ou no WGT. A senha é mantida em memória de sessão e enviada à API Xtream via HTTPS; não registrar URLs autenticadas em logs.
-- Nenhum serviço do painel M81 ou aplicativo Android foi alterado por este checkpoint.
-
-**Checkpoint:** preservar esta versão como referência de reprodução comprovada no emulador. Não substituir outros aplicativos ou branches sem comparação e testes.
+**Preservação:** manter a QA 0.2.8 como ponto de retorno. Não mesclar na `main` sem homologação de estabilidade, navegação, fontes e TV física.
