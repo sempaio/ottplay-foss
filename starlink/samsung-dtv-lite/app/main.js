@@ -2,7 +2,7 @@
 'use strict';
 var BASE='https://panel.taila5c5c2.ts.net';
 var core=w.StarlinkLiteCore;
-var state={username:'',password:'',categories:[],channels:[],visible:[],culture:null,current:null,events:0,lastTime:-1,playStart:0,playing:false,logged:false,generation:0};
+var state={username:'',password:'',categories:[],channels:[],visible:[],culture:null,current:null,events:0,lastTime:-1,playStart:0,playing:false,logged:false,generation:0,bufferStarts:0,bufferingSince:0,bufferTotalMs:0};
 var av=w.webapis&&w.webapis.avplay;
 function byId(id){return d.getElementById(id);}
 function text(id,msg){byId(id).textContent=String(msg);}
@@ -12,6 +12,7 @@ function page(name){
  for(var i=0;i<sections.length;i++)byId(sections[i]).hidden=sections[i]!==name;
  d.body.className=name==='player-screen'?'playing':'';
  d.documentElement.className=name==='player-screen'?'playing':'';
+ if(name==='player-screen')byId('back-button').focus();
 }
 function request(action,success,fail){
  var xhr=new XMLHttpRequest();
@@ -59,6 +60,7 @@ function loadCatalog(){
    text('catalog-count',categories.length+' categorias · '+channels.length+' canais');
    text('catalog-status','Catálogo Xtream recebido. Reprodução nativa Samsung AVPlay.');
    renderCategories();showCategory('');
+   var firstCat=byId('categories').firstElementChild;if(firstCat)firstCat.focus();
    if(preferred||state.culture){w.setTimeout(function(){play(preferred||state.culture);},700);}
   },function(err){text('catalog-status','Falha ao carregar canais: '+err);});
  },function(err){text('catalog-status','Falha ao carregar categorias: '+err);});
@@ -107,7 +109,7 @@ function stop(){
 function videoStatus(msg){text('video-status',msg);console.log('STARLINK_AVPLAY '+msg);}
 function play(item,publicSample){
  if(!state.logged)return;
- stop();state.current=item;state.events=0;state.lastTime=-1;state.playStart=Date.now();state.playing=true;
+ stop();state.current=item;state.events=0;state.lastTime=-1;state.playStart=Date.now();state.playing=true;state.bufferStarts=0;state.bufferingSince=0;state.bufferTotalMs=0;
  var playbackGeneration=state.generation;
  function isCurrentPlayback(){return state.playing&&state.logged&&state.generation===playbackGeneration;}
  page('player-screen');
@@ -120,11 +122,21 @@ function play(item,publicSample){
  try{
   videoStatus('Abrindo vídeo com Samsung AVPlay...');
   av.open(url);
+  // Samsung permite ajustar o buffer somente no estado IDLE, após open e antes de prepareAsync.
+  if(typeof av.setBufferingParam==='function'){
+   try{
+    av.setBufferingParam('PLAYER_BUFFER_FOR_PLAY','PLAYER_BUFFER_SIZE_IN_SECOND',5);
+    av.setBufferingParam('PLAYER_BUFFER_FOR_RESUME','PLAYER_BUFFER_SIZE_IN_SECOND',12);
+   }catch(e){console.warn('STARLINK_AVPLAY buffering configuration unavailable',e.name||'error');}
+  }
+  if(typeof av.setTimeoutForBuffering==='function'){
+   try{av.setTimeoutForBuffering(10);}catch(e){console.warn('STARLINK_AVPLAY buffering timeout unavailable',e.name||'error');}
+  }
   av.setDisplayRect(0,0,1920,1080);
   av.setListener({
-   onbufferingstart:function(){if(isCurrentPlayback())videoStatus('Carregando vídeo...');},
+   onbufferingstart:function(){if(!isCurrentPlayback())return;state.bufferStarts++;state.bufferingSince=Date.now();videoStatus('Carregando vídeo... (buffer '+state.bufferStarts+')');},
    onbufferingprogress:function(percent){if(isCurrentPlayback()&&percent%20===0)videoStatus('Buffer '+percent+'%');},
-   onbufferingcomplete:function(){if(isCurrentPlayback())videoStatus('Buffer concluído');},
+   onbufferingcomplete:function(){if(!isCurrentPlayback())return;if(state.bufferingSince){state.bufferTotalMs+=Date.now()-state.bufferingSince;state.bufferingSince=0;}videoStatus('Buffer concluído');},
    oncurrentplaytime:function(ms){
     if(!isCurrentPlayback())return;
     state.events++;
@@ -141,7 +153,7 @@ function play(item,publicSample){
   },function(err){if(isCurrentPlayback())videoStatus('Falha ao preparar vídeo: '+String(err));});
  }catch(err){videoStatus('Falha ao abrir transmissão: '+err.message);}
 }
-function back(){stop();page('catalog-screen');text('catalog-status','Pronto para selecionar outro canal.');}
+function back(){stop();page('catalog-screen');text('catalog-status','Pronto para selecionar outro canal.');var selected=byId('categories').querySelector('.selected')||byId('categories').firstElementChild;if(selected)selected.focus();}
 function logout(){stop();state.username='';state.password='';state.logged=false;state.channels=[];state.categories=[];state.culture=null;byId('username').value='';byId('password').value='';page('login-screen');text('login-status','Sessão encerrada.');}
 byId('login-form').onsubmit=login;
 byId('back-button').onclick=back;
@@ -149,13 +161,20 @@ byId('exit-button').onclick=logout;
 byId('culture-button').onclick=function(){if(state.culture)play(state.culture);};
 byId('public-demo-button').onclick=function(){play({name:'Teste HLS público',stream_id:0},true);};
 d.addEventListener('keydown',function(ev){
- if(state.playing&&(ev.keyCode===10009||ev.keyCode===27)){ev.preventDefault();back();}
- if(state.logged&&!state.playing&&ev.keyCode===406){logout();}
+ var key=ev.keyCode;
+ if(state.playing&&(key===10009||key===27)){ev.preventDefault();back();return;}
+ if(state.logged&&!state.playing&&key===406){logout();return;}
+ if(!state.logged||state.playing)return;
+ var active=d.activeElement;
+ var isCategory=active&&active.classList&&active.classList.contains('category');
+ var isChannel=active&&active.classList&&active.classList.contains('channel');
+ if(key===39&&isCategory){var first=byId('channels').firstElementChild;if(first){ev.preventDefault();first.focus();}return;}
+ if(key===37&&isChannel){var selected=byId('categories').querySelector('.selected')||byId('categories').firstElementChild;if(selected){ev.preventDefault();selected.focus();}return;}
+ if((key===38||key===40)&&(isCategory||isChannel)){
+  var next=key===40?active.nextElementSibling:active.previousElementSibling;
+  if(next){ev.preventDefault();next.focus();try{next.scrollIntoView({block:'nearest'});}catch(e){next.scrollIntoView(false);}}
+ }
 },true);
-// O controle remoto Samsung pode enviar o botão Voltar como evento nativo Tizen.
-d.addEventListener('tizenhwkey',function(ev){
- if(ev.keyName==='back'&&state.playing){if(ev.preventDefault)ev.preventDefault();back();}
-},true);
-w.__starlinkLiteQA={snapshot:function(){return {logged:state.logged,channels:state.channels.length,playing:state.playing,events:state.events,timeMs:state.lastTime,channel:state.current&&state.current.name};}};
+w.__starlinkLiteQA={snapshot:function(){return {logged:state.logged,channels:state.channels.length,playing:state.playing,events:state.events,timeMs:state.lastTime,channel:state.current&&state.current.name,bufferStarts:state.bufferStarts,bufferTotalMs:state.bufferTotalMs};}};
 text('login-status','Digite sua conta M81. Servidor pré-configurado. Nenhuma senha é armazenada.');
 })(window,document);

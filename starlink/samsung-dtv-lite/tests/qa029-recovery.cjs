@@ -62,13 +62,11 @@ async function setup(browser) {
   const status=await p.locator('#video-status').innerText();
   assert.equal(status.includes('OLD_STREAM_ERROR'),false,'old stream error overwrote current channel');
  });
- await check('Samsung Tizen hardware Back key returns to catalog',async p=>{
+ await check('Samsung TV Remote Back keyCode 10009 returns to catalog',async p=>{
   await p.evaluate(()=>{
-   const e=new Event('tizenhwkey');
-   e.keyName='back';
-   document.dispatchEvent(e);
+   document.dispatchEvent(new KeyboardEvent('keydown',{bubbles:true,keyCode:10009,which:10009}));
   });
-  assert.equal(await p.locator('#catalog-screen').isVisible(),true,'Tizen Back ignored');
+  assert.equal(await p.locator('#catalog-screen').isVisible(),true,'Samsung Remote Back ignored');
  });
  await check('no late video playback after logout',async p=>{
   await p.locator('#back-button').click();
