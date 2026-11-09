@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>STARLINK DTV</title>
+<script src="$WEBAPIS/webapis/webapis.js"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<section id="login-screen" class="page">
+ <div class="logo">STARLINK <b>DTV</b></div>
+ <div class="login-card">
+  <h1>Seu conteúdo na Samsung</h1>
+  <p>Entre com seu usuário e senha IPTV.</p>
+  <form id="login-form">
+   <label for="username">Usuário</label><input id="username" autocomplete="off" maxlength="100">
+   <label for="password">Senha</label><input id="password" type="password" maxlength="100" autocomplete="off">
+   <button id="login-button" type="submit">Conectar TV</button>
+  </form>
+  <div id="login-status" role="status">Servidor STARLINK pré-configurado. Nenhum endereço necessário.</div>
+ </div>
+</section>
+<section id="catalog-screen" class="page" hidden>
+ <div class="top"><div class="logo">STARLINK <b>DTV</b></div><span id="catalog-count"></span><button id="exit-button">Sair</button></div>
+ <h1>Canais ao vivo</h1>
+ <div id="catalog-status" role="status">Preparando lista...</div>
+ <div class="columns"><div id="categories" class="items"></div><div id="channels" class="items"></div></div>
+ <div class="actions"><button id="culture-button">Reproduzir TV Cultura</button><button id="public-demo-button">Teste HLS público</button></div>
+</section>
+<section id="player-screen" class="page" hidden>
+ <div class="player-info"><h2 id="now-playing">Aguardando vídeo...</h2><p id="video-status">Inicializando AVPlay</p><p id="video-timer">Tempo de reprodução: aguardando eventos</p><button id="back-button">Voltar aos canais</button></div>
+</section>
+<script src="core.js"></script>
+<script src="main.js"></script>
+</body></html>

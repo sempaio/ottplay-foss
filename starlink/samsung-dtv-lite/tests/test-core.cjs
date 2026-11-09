@@ -1,0 +1,13 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const vm=require('node:vm');
+const ctx={module:{exports:{}}};
+vm.runInNewContext(fs.readFileSync(__dirname+'/../app/core.js','utf8'),ctx);
+const core=ctx.module.exports;
+assert.equal(core.isValidAccount({user_info:{auth:1,status:'Active'}}),true);
+assert.equal(core.isValidAccount({user_info:{auth:0,status:'Active'}}),false);
+assert.equal(core.streamUrl('https://panel.example','usuario','senha',{stream_id:42,container_extension:'m3u8'}),'https://panel.example/live/usuario/senha/42.m3u8');
+assert.throws(()=>core.streamUrl('javascript:alert(1)','x','y',{stream_id:42}),/origin/i);
+assert.throws(()=>core.streamUrl('https://panel.example','x','y',{stream_id:'abc'}),/stream/i);
+assert.equal(core.pickTestChannel([{name:'Outro',stream_id:1},{name:'TV Cultura (720p)',stream_id:9}]).stream_id,9);
+console.log('STARLINK Samsung DTV lite core: PASS');
