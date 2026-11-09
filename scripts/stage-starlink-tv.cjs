@@ -96,6 +96,11 @@ function stage(platform, apiBase, mode = "managed") {
             '<script src="./starlink/bootstrap.js"></script>\n</head>'
     );
     if (platform === "samsung") {
+        // The Samsung Product API must load before player/device initialization.
+        html = html.replace(
+            "</head>",
+            '<script type="text/javascript" src="$WEBAPIS/webapis/webapis.js"></script>\n</head>'
+        );
         html = html.replace(
             "</head>",
             '<link rel="stylesheet" href="./starlink/for-you.css">\n' +

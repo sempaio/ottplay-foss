@@ -189,3 +189,154 @@ function stbInit(): void {
     focusApp();
 }
 (window as any).stbInit = stbInit;
+
+let tizenAvPlayLease: any = null;
+function getTizenAvPlay(): any {
+    try {
+        return (window as any).webapis?.avplay || null;
+    } catch {
+        return null;
+    }
+}
+function setTizenAvPlayRect(avplay: any): void {
+    try {
+        const node = document.getElementById("vdiv");
+        const rect = node?.getBoundingClientRect?.() || {
+            left: 0,
+            top: 0,
+            width: window.innerWidth || 1920,
+            height: window.innerHeight || 1080,
+        };
+        const sw = window.screen?.width || window.innerWidth || 1920;
+        const sh = window.screen?.height || window.innerHeight || 1080;
+        const iw = window.innerWidth || sw;
+        const ih = window.innerHeight || sh;
+        avplay.setDisplayRect(
+            Math.max(0, Math.round((rect.left * sw) / iw)),
+            Math.max(0, Math.round((rect.top * sh) / ih)),
+            Math.max(1, Math.round((rect.width * sw) / iw)),
+            Math.max(1, Math.round((rect.height * sh) / ih))
+        );
+    } catch (error) {
+        console.warn("[Samsung AVPlay] display rect failed", error);
+    }
+}
+function createTizenAvPlayEngine(request: any, emit: (name: string) => void, media: any): any {
+    const avplay = getTizenAvPlay();
+    if (!avplay) throw new Error("Samsung AVPlay unavailable");
+    let disposed = false;
+    let paused = !!request.paused;
+    let position = Number(request.position) || 0;
+    let duration = Number.NaN;
+    let hasCurrentPlaytime = false;
+    const surface = document.getElementById("vdiv");
+    const oldMediaVisibility = media?.style?.visibility || "";
+    const oldSurfaceBackground = surface?.style?.backgroundColor || "";
+    const oldBodyBackground = document.body?.style?.backgroundColor || "";
+    const oldHtmlBackground = document.documentElement?.style?.backgroundColor || "";
+    const active = () => !disposed && tizenAvPlayLease === lease;
+    const fire = (name: string) => {
+        if (!active()) return;
+        try { emit(name); } catch {}
+    };
+    const state = () => {
+        try { return avplay.getState(); } catch { return "NONE"; }
+    };
+    const currentSeconds = () => {
+        if (hasCurrentPlaytime) return position;
+        try { return Number(avplay.getCurrentTime()) / 1000 || position; } catch { return position; }
+    };
+    const durationSeconds = () => {
+        try {
+            const value = Number(avplay.getDuration());
+            if (Number.isFinite(value) && value >= 0) duration = value / 1000;
+        } catch {}
+        return duration;
+    };
+    const seek = (seconds: number, done?: () => void) => {
+        if (!active()) return;
+        const ms = Math.max(0, Math.round(Number(seconds || 0) * 1000));
+        position = ms / 1000;
+        try { avplay.seekTo(ms, () => done?.(), () => done?.()); } catch { done?.(); }
+    };
+    const startPrepared = () => {
+        if (!active()) return;
+        fire("loadedmetadata");
+        durationSeconds();
+        const finishStart = () => {
+            if (!active()) return;
+            if (paused) { fire("pause"); return; }
+            try { avplay.play(); fire("playing"); } catch (error) {
+                console.error("[Samsung AVPlay] play failed", error);
+                fire("error");
+            }
+        };
+        if (position > 0) seek(position, finishStart); else finishStart();
+    };
+    const listener = {
+        onbufferingstart() {},
+        onbufferingcomplete() {},
+        oncurrentplaytime(ms: number) { hasCurrentPlaytime = true; position = Number(ms) / 1000 || 0; fire("timeupdate"); },
+        onstreamcompleted() { fire("ended"); },
+        onerror(error: unknown) { console.error("[Samsung AVPlay] error", error); fire("error"); },
+        onerrormsg(error: unknown, message: unknown) { console.error("[Samsung AVPlay] error", error, message); fire("error"); },
+    };
+    const lease: any = {
+        diagnosticAttempt: () => null,
+        diagnosticEngine: () => (active() ? "samsung-avplay" : null),
+        dispose() {
+            if (disposed) return;
+            disposed = true;
+            if (tizenAvPlayLease === lease) tizenAvPlayLease = null;
+            try { if (state() === "PLAYING" || state() === "PAUSED") avplay.stop(); } catch {}
+            try { avplay.close(); } catch {}
+            if (media?.style) media.style.visibility = oldMediaVisibility;
+            if (surface?.style) surface.style.backgroundColor = oldSurfaceBackground;
+            if (document.body?.style) document.body.style.backgroundColor = oldBodyBackground;
+            if (document.documentElement?.style) document.documentElement.style.backgroundColor = oldHtmlBackground;
+        },
+        pause() { if (!active()) return; paused = true; try { if (state() === "PLAYING") avplay.pause(); } catch {} fire("pause"); },
+        resume() { if (!active()) return; paused = false; try { const current = state(); if (current === "PAUSED" || current === "READY") avplay.play(); fire("playing"); } catch { fire("error"); } },
+        sample() { const current = state(); position = currentSeconds(); return { duration: durationSeconds(), paused: paused || current !== "PLAYING", position, ready: current === "READY" || current === "PLAYING" || current === "PAUSED" ? 4 : current === "IDLE" ? 1 : 0 }; },
+        seek(seconds: number) { seek(seconds); },
+        selectTrack() {},
+        supportsPausedStart: true,
+        tracks: () => [],
+    };
+    if (tizenAvPlayLease && tizenAvPlayLease !== lease) {
+        try { tizenAvPlayLease.dispose(); } catch {}
+    }
+    tizenAvPlayLease = lease;
+    if (media?.style) media.style.visibility = "hidden";
+    if (surface?.style) surface.style.backgroundColor = "transparent";
+    if (document.body?.style) document.body.style.backgroundColor = "transparent";
+    if (document.documentElement?.style) document.documentElement.style.backgroundColor = "transparent";
+    try { avplay.close(); } catch {}
+    try {
+        avplay.open(request.url);
+        setTizenAvPlayRect(avplay);
+        if (typeof avplay.setDisplayMethod === "function") {
+            try { avplay.setDisplayMethod("PLAYER_DISPLAY_MODE_LETTER_BOX"); } catch {}
+        }
+        avplay.setListener(listener);
+        avplay.prepareAsync(startPrepared, (error: unknown) => { console.error("[Samsung AVPlay] prepare failed", error); fire("error"); });
+    } catch (error) {
+        console.error("[Samsung AVPlay] open failed", error);
+        fire("error");
+    }
+    return lease;
+}
+function installTizenAvPlayEngine(): void {
+    const transport = (window as any).__ottCoreTransport;
+    if (!transport || typeof transport.configure !== "function" || !getTizenAvPlay()) return;
+    transport.configure({
+        engine: createTizenAvPlayEngine,
+        fullscreen() {
+            const avplay = getTizenAvPlay();
+            if (!avplay || !tizenAvPlayLease) return;
+            window.setTimeout(() => { if (tizenAvPlayLease) setTizenAvPlayRect(avplay); }, 0);
+        },
+    });
+    console.log("[stb] Samsung AVPlay engine registered");
+}
+installTizenAvPlayEngine();
