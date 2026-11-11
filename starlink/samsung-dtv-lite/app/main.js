@@ -17,6 +17,56 @@ function saveLogin(){
  catch(_e){text('login-status','Conta conectada; nao foi possivel memorizar o login nesta TV.');}
 }
 function byId(id){return d.getElementById(id);}
+var remoteKeyboardField=null,remoteKeyboardUpper=false;
+var REMOTE_KEYBOARD_CHARS="abcdefghijklmnopqrstuvwxyz0123456789@._-!#$%&*+?/=,;:()[]{}'\"^~"+String.fromCharCode(92)+"|";
+function closeRemoteKeyboard(){
+ byId('login-keyboard').hidden=true;
+ var target=remoteKeyboardField;
+ remoteKeyboardField=null;
+ if(target)byId(target==='username'?'password-keyboard':'login-button').focus();
+}
+function renderRemoteKeyboard(){
+ var area=byId('keyboard-keys');
+ area.textContent='';
+ for(var i=0;i<REMOTE_KEYBOARD_CHARS.length;i++){
+  var ch=REMOTE_KEYBOARD_CHARS.charAt(i),button=d.createElement('button');
+  button.type='button';button.className='tv-key';
+  button.textContent=remoteKeyboardUpper?ch.toUpperCase():ch;
+  button.setAttribute('data-tv-key',ch);
+  button.onclick=(function(letter){return function(){
+   var target=byId(remoteKeyboardField);
+   if(target && target.value.length<Number(target.maxLength || 100))
+    target.value+=remoteKeyboardUpper?letter.toUpperCase():letter;
+  };})(ch);
+  area.appendChild(button);
+ }
+ var cmds=[['shift',remoteKeyboardUpper?'minusculas':'MAIUSCULAS'],
+           ['back','Apagar'],['space','Espaco'],['done','Concluir']];
+ for(var j=0;j<cmds.length;j++){
+  var b=d.createElement('button');b.type='button';b.className='tv-key tv-key-command';
+  b.id='keyboard-'+cmds[j][0];b.textContent=cmds[j][1];b.setAttribute('data-tv-key',cmds[j][0]);
+  b.onclick=(function(command){return function(){
+   if(command==='shift'){remoteKeyboardUpper=!remoteKeyboardUpper;renderRemoteKeyboard();byId('keyboard-shift').focus();return;}
+   if(command==='done'){closeRemoteKeyboard();return;}
+   var input=byId(remoteKeyboardField);
+   if(!input)return;
+   if(command==='back')input.value=input.value.slice(0,-1);
+   else if(input.value.length<Number(input.maxLength || 100))input.value+=' ';
+  };})(cmds[j][0]);
+  area.appendChild(b);
+ }
+}
+function openRemoteKeyboard(field){
+ if(state.logged)return;
+ remoteKeyboardField=field;
+ remoteKeyboardUpper=false;
+ byId('keyboard-title').textContent=field==='username'?'Digitar usuario':'Digitar senha';
+ renderRemoteKeyboard();
+ byId('login-keyboard').hidden=false;
+ var first=byId('keyboard-keys').firstElementChild;
+ if(first)first.focus();
+}
+
 function text(id,msg){byId(id).textContent=String(msg);}
 function log(msg){text(state.playing?'video-status':'catalog-status',msg);console.log('STARLINK_LITE_QA '+msg);}
 function page(name){
@@ -167,14 +217,30 @@ function play(item,publicSample,retryCount){
  }catch(err){videoStatus('Falha ao abrir transmissão: '+err.message);}
 }
 function back(){stop();page('catalog-screen');text('catalog-status','Pronto para selecionar outro canal.');var selected=byId('categories').querySelector('.selected')||byId('categories').firstElementChild;if(selected)selected.focus();}
-function logout(){clearSavedLogin();stop();state.username='';state.password='';state.logged=false;state.channels=[];state.categories=[];state.culture=null;byId('username').value='';byId('password').value='';page('login-screen');text('login-status','Sessão encerrada.');}
+function logout(){if(remoteKeyboardField)closeRemoteKeyboard();clearSavedLogin();stop();state.username='';state.password='';state.logged=false;state.channels=[];state.categories=[];state.culture=null;byId('username').value='';byId('password').value='';page('login-screen');byId('username').focus();text('login-status','Sessão encerrada.');}
 byId('login-form').onsubmit=login;
+byId('username-keyboard').onclick=function(){openRemoteKeyboard('username');};
+byId('password-keyboard').onclick=function(){openRemoteKeyboard('password');};
 byId('back-button').onclick=back;
 byId('exit-button').onclick=logout;
 byId('culture-button').onclick=function(){if(state.culture)play(state.culture);};
 byId('public-demo-button').onclick=function(){play({name:'Teste HLS público',stream_id:0},true);};
 d.addEventListener('keydown',function(ev){
  var key=ev.keyCode;
+ if(!byId('login-keyboard').hidden){
+  if(key===10009||key===27){ev.preventDefault();closeRemoteKeyboard();return;}
+  var keys=byId('keyboard-keys').querySelectorAll('button');
+  var index=-1;
+  for(var k=0;k<keys.length;k++)if(keys[k]===d.activeElement){index=k;break;}
+  if(key===13&&index>=0){ev.preventDefault();keys[index].click();return;}
+  if((key===37||key===38||key===39||key===40)&&index>=0){
+   ev.preventDefault();
+   var delta=key===37?-1:key===39?1:key===38?-10:10;
+   var next=Math.max(0,Math.min(keys.length-1,index+delta));
+   keys[next].focus();return;
+  }
+  return;
+ }
  if(state.playing&&(key===10009||key===27)){ev.preventDefault();back();return;}
  if(state.logged&&!state.playing&&key===406){logout();return;}
  if(!state.logged||state.playing)return;
@@ -205,5 +271,8 @@ if(remembered){
  text('login-status','Retomando sessao nesta TV...');
  login(null,true);
 }
+if(!remembered)w.setTimeout(function(){
+ if(!state.logged && !byId('login-screen').hidden)byId('username').focus();
+},0);
 text('login-status','Digite sua conta M81. Servidor pré-configurado. Nenhuma senha é armazenada.');
 })(window,document);

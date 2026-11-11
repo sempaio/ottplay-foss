@@ -14,11 +14,16 @@
   <h1>Seu conteúdo na Samsung</h1>
   <p>Entre com seu usuário e senha IPTV.</p>
   <form id="login-form">
-   <label for="username">Usuário</label><input id="username" autocomplete="off" maxlength="100">
-   <label for="password">Senha</label><input id="password" type="password" maxlength="100" autocomplete="off">
+   <label for="username">Usuário</label><input id="username" type="text" inputmode="text" tabindex="0" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="100"><button id="username-keyboard" type="button">Digitar usuario pelo controle</button>
+   <label for="password">Senha</label><input id="password" type="password" inputmode="text" tabindex="0" maxlength="100" autocomplete="off"><button id="password-keyboard" type="button">Digitar senha pelo controle</button>
    <label><input id="remember-login" type="checkbox" checked> Entrar automaticamente nesta TV (uso pessoal)</label>
    <button id="login-button" type="submit">Conectar TV</button>
   </form>
+  <div id="login-keyboard" role="dialog" aria-modal="true" aria-label="Teclado pelo controle" hidden>
+   <h2 id="keyboard-title">Teclado</h2>
+   <p>Use as setas do controle para escolher as letras e OK para digitar.</p>
+   <div id="keyboard-keys"></div>
+  </div>
   <div id="login-status" role="status">Servidor STARLINK pré-configurado. Nenhum endereço necessário.</div>
  </div>
 </section>
