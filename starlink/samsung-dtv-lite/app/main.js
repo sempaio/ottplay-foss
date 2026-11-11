@@ -2,8 +2,20 @@
 'use strict';
 var BASE='https://panel.taila5c5c2.ts.net';
 var core=w.StarlinkLiteCore;
-var state={username:'',password:'',categories:[],channels:[],visible:[],culture:null,current:null,events:0,lastTime:-1,playStart:0,playing:false,logged:false,generation:0,bufferStarts:0,bufferingSince:0,bufferTotalMs:0};
+var state={username:'',password:'',categories:[],channels:[],visible:[],culture:null,current:null,events:0,lastTime:-1,playStart:0,playing:false,logged:false,generation:0,bufferStarts:0,bufferingSince:0,bufferTotalMs:0,remembered:false,lastAdvanceAt:0,stableAt:0,progressEvents:0,retryCount:0,publicSample:false};
 var av=w.webapis&&w.webapis.avplay;
+var LOGIN_KEY='starlink-dtv-qa032-remembered-account';
+function clearSavedLogin(){try{w.localStorage.removeItem(LOGIN_KEY);}catch(_e){}}
+function readSavedLogin(){
+ try{
+  var v=JSON.parse(w.localStorage.getItem(LOGIN_KEY)||'null');
+  return v&&v.username&&v.password&&v.version===1?v:null;
+ }catch(_e){return null;}
+}
+function saveLogin(){
+ try{w.localStorage.setItem(LOGIN_KEY,JSON.stringify({version:1,username:state.username,password:state.password}));}
+ catch(_e){text('login-status','Conta conectada; nao foi possivel memorizar o login nesta TV.');}
+}
 function byId(id){return d.getElementById(id);}
 function text(id,msg){byId(id).textContent=String(msg);}
 function log(msg){text(state.playing?'video-status':'catalog-status',msg);console.log('STARLINK_LITE_QA '+msg);}
@@ -30,15 +42,16 @@ function request(action,success,fail){
  xhr.ontimeout=function(){fail('Tempo esgotado');};
  xhr.send();
 }
-function login(evt){
+function login(evt,restored){
  if(evt)evt.preventDefault();
  state.username=byId('username').value.trim();
  state.password=byId('password').value;
  if(!state.username||!state.password){text('login-status','Preencha usuário e senha.');return;}
  text('login-status','Verificando sua conta Xtream...');
  request('',function(data){
-  if(!core.isValidAccount(data)){text('login-status','Usuário, senha ou conta não autorizada.');return;}
+  if(!core.isValidAccount(data)){if(restored)clearSavedLogin();text('login-status','Usuário, senha ou conta não autorizada.');return;}
   state.logged=true;
+  if(byId('remember-login').checked)saveLogin();else clearSavedLogin();
   byId('password').value='';
   page('catalog-screen');
   text('catalog-status','Carregando categorias e canais do M81...');
@@ -107,9 +120,9 @@ function stop(){
  try{av.close();}catch(e){}
 }
 function videoStatus(msg){text('video-status',msg);console.log('STARLINK_AVPLAY '+msg);}
-function play(item,publicSample){
+function play(item,publicSample,retryCount){
  if(!state.logged)return;
- stop();state.current=item;state.events=0;state.lastTime=-1;state.playStart=Date.now();state.playing=true;state.bufferStarts=0;state.bufferingSince=0;state.bufferTotalMs=0;
+ stop();state.current=item;state.events=0;state.lastTime=-1;state.playStart=Date.now();state.playing=true;state.bufferStarts=0;state.bufferingSince=0;state.bufferTotalMs=0;state.retryCount=retryCount||0;state.progressEvents=0;state.lastAdvanceAt=Date.now();state.stableAt=0;state.publicSample=!!publicSample;
  var playbackGeneration=state.generation;
  function isCurrentPlayback(){return state.playing&&state.logged&&state.generation===playbackGeneration;}
  page('player-screen');
@@ -140,7 +153,7 @@ function play(item,publicSample){
    oncurrentplaytime:function(ms){
     if(!isCurrentPlayback())return;
     state.events++;
-    if(ms>state.lastTime){state.lastTime=ms;text('video-timer','Tempo '+(ms/1000).toFixed(1)+' s · '+state.events+' eventos');videoStatus('Reprodução em andamento');}
+    if(ms>state.lastTime){if(state.lastTime>=0&&ms-state.lastTime>250){state.progressEvents++;state.lastAdvanceAt=Date.now();if(!state.stableAt)state.stableAt=Date.now();if(Date.now()-state.stableAt>=12000)state.retryCount=0;}state.lastTime=ms;text('video-timer','Tempo '+(ms/1000).toFixed(1)+' s · '+state.events+' eventos');videoStatus('Reprodução em andamento');}
    },
    onstreamcompleted:function(){if(isCurrentPlayback())videoStatus('Vídeo concluído');},
    onerror:function(err){if(isCurrentPlayback())videoStatus('Erro AVPlay: '+String(err));},
@@ -154,7 +167,7 @@ function play(item,publicSample){
  }catch(err){videoStatus('Falha ao abrir transmissão: '+err.message);}
 }
 function back(){stop();page('catalog-screen');text('catalog-status','Pronto para selecionar outro canal.');var selected=byId('categories').querySelector('.selected')||byId('categories').firstElementChild;if(selected)selected.focus();}
-function logout(){stop();state.username='';state.password='';state.logged=false;state.channels=[];state.categories=[];state.culture=null;byId('username').value='';byId('password').value='';page('login-screen');text('login-status','Sessão encerrada.');}
+function logout(){clearSavedLogin();stop();state.username='';state.password='';state.logged=false;state.channels=[];state.categories=[];state.culture=null;byId('username').value='';byId('password').value='';page('login-screen');text('login-status','Sessão encerrada.');}
 byId('login-form').onsubmit=login;
 byId('back-button').onclick=back;
 byId('exit-button').onclick=logout;
@@ -175,6 +188,22 @@ d.addEventListener('keydown',function(ev){
   if(next){ev.preventDefault();next.focus();try{next.scrollIntoView({block:'nearest'});}catch(e){next.scrollIntoView(false);}}
  }
 },true);
-w.__starlinkLiteQA={snapshot:function(){return {logged:state.logged,channels:state.channels.length,playing:state.playing,events:state.events,timeMs:state.lastTime,channel:state.current&&state.current.name,bufferStarts:state.bufferStarts,bufferTotalMs:state.bufferTotalMs};}};
+w.setInterval(function(){
+ if(!state.logged||!state.playing||!state.current||state.publicSample)return;
+ var limit=state.retryCount>=3?60000:(state.progressEvents>0?15000:20000);
+ if(Date.now()-state.lastAdvanceAt<limit)return;
+ var item=state.current,attempt=Math.min(3,state.retryCount+1);
+ videoStatus('Reconectando canal apos interrupcao (tentativa '+attempt+')');
+ play(item,false,attempt);
+},1000);
+w.__starlinkLiteQA={snapshot:function(){return {retryCount:state.retryCount,logged:state.logged,channels:state.channels.length,playing:state.playing,events:state.events,timeMs:state.lastTime,channel:state.current&&state.current.name,bufferStarts:state.bufferStarts,bufferTotalMs:state.bufferTotalMs};}};
+var remembered=readSavedLogin();
+if(remembered){
+ byId('username').value=remembered.username;
+ byId('password').value=remembered.password;
+ byId('remember-login').checked=true;
+ text('login-status','Retomando sessao nesta TV...');
+ login(null,true);
+}
 text('login-status','Digite sua conta M81. Servidor pré-configurado. Nenhuma senha é armazenada.');
 })(window,document);

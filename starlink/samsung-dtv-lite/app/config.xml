@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets" id="https://starlink.local/tv/qa-lite-026" version="0.3.0" viewmodes="maximized">
-<tizen:application id="STLTVL0010.StarlinkDTV" package="STLTVL0010" required_version="5.5"/>
-<content src="index.html"/><name>STARLINKDTV</name><icon src="icon.png"/>
+<widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets" id="https://starlink.local/tv/qa-lite-rebuffer-032" version="0.3.2" viewmodes="maximized">
+<tizen:application id="STLTVR0010.StarlinkDTV" package="STLTVR0010" required_version="5.5"/>
+<content src="index.html"/><name>STARLINK DTV Rebuffer QA</name><icon src="icon.png"/>
 <tizen:profile name="tv-samsung"/>
 <tizen:privilege name="http://tizen.org/privilege/internet"/>
 <tizen:privilege name="http://tizen.org/privilege/tv.inputdevice"/>
