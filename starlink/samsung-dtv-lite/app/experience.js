@@ -226,7 +226,7 @@ function renderHero(){
  }
  kicker.textContent=winner.reason==='watched'?'BASEADO NO QUE VOCÊ MAIS ASSISTE':'ESCOLHIDO PELOS SEUS GOSTOS';
  title.textContent=item.title;
- desc.textContent=(item.kind==='live'?'Canal ao vivo':'Série'=== (item.kind==='series'?'Série':'')?'Sua série':'Seu filme')+
+ desc.textContent=(item.kind==='live'?'Canal ao vivo':item.kind==='series'?'Sua série':'Seu filme')+
   ' · '+(item.category||'Conteúdo STARLINK')+
   (winner.reason==='watched'?' · Sua preferência ganhou destaque.':' · Uma sugestão para você.');
  playButton.hidden=false;
