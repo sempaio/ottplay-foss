@@ -418,6 +418,42 @@
    return g===group&&(!sub||sub===sc);
   });
  }
+ function movieSourceDirectory(categories){
+  var list=(categories||[]).filter(function(c){
+   return !!c&&!!val(c.category_id)&&!!val(c.category_name);
+  });
+  var samples=list.map(function(c){
+   return {kind:'movie',category:val(c.category_name)};
+  });
+  var index=categoryGroups(samples,'movie');
+  index.groups[0].title='Destaques';
+  index.groups[0].count=0;
+  index.totalCategories=list.length;
+  index.defaultGroup='';
+  for(var i=1;i<index.groups.length;i++){
+   if(index.groups[i].key==='Lançamentos'){index.defaultGroup='Lançamentos';break;}
+  }
+  if(!index.defaultGroup&&index.groups.length>1)index.defaultGroup=index.groups[1].key;
+  return index;
+ }
+ function movieSourceIds(categories,group,sub){
+  var items=categories||[],wanted=val(group),detail=val(sub);
+  if(!wanted){
+   var index=movieSourceDirectory(items);
+   wanted=index.defaultGroup;
+  }
+  var ids=[],seen={};
+  for(var i=0;i<items.length;i++){
+   var c=items[i];
+   if(!c||!val(c.category_id))continue;
+   var taxonomy=categoryTaxonomy('movie',c.category_name);
+   if(wanted&&taxonomy.group!==wanted)continue;
+   if(detail&&taxonomy.sub!==detail)continue;
+   var id=val(c.category_id);
+   if(!seen[id]){seen[id]=true;ids.push(id);}
+  }
+  return ids;
+ }
  function isSeekable(item){return !!item&&(item.kind==='movie'||item.kind==='episode');}
  function seekTarget(current,delta,duration){
   var now=Number(current),change=Number(delta),total=Number(duration);
@@ -436,5 +472,6 @@
   safeViewingStats:safeViewingStats,recordViewing:recordViewing,personalHero:personalHero,
   pageClasses:pageClasses,liveCategories:liveCategories,
   filterLiveCategory:filterLiveCategory,isSeekable:isSeekable,seekTarget:seekTarget,
-  categoryTaxonomy:categoryTaxonomy,categoryGroups:categoryGroups,filterGrouped:filterGrouped};
+  categoryTaxonomy:categoryTaxonomy,categoryGroups:categoryGroups,filterGrouped:filterGrouped,
+  movieSourceDirectory:movieSourceDirectory,movieSourceIds:movieSourceIds};
 });
