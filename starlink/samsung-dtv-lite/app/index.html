@@ -62,6 +62,7 @@
   </div>
  </section>
  <p id="experience-status" role="status">Preparando sua biblioteca...</p>
+ <nav id="live-subcategories" class="live-subcategories" aria-label="Categorias dos canais ao vivo" hidden></nav>
  <div id="experience-rails"></div>
  <div id="experience-detail" hidden role="dialog" aria-label="Detalhes do conteúdo">
   <div class="detail-dialog">
@@ -79,6 +80,13 @@
 </section>
 <section id="player-screen" class="page" hidden>
  <div class="player-info"><h2 id="now-playing">Aguardando vídeo...</h2><p id="video-status">Inicializando AVPlay</p><p id="video-timer">Tempo de reprodução: aguardando eventos</p><button id="back-button">Voltar aos canais</button><button id="retry-button" type="button" hidden>Tentar este canal novamente</button><button id="quality-button" type="button" hidden>Qualidade: Automática</button><div id="quality-panel" hidden><h3>Qualidade do canal</h3><div id="quality-options"></div><p>Em fontes HLS adaptativas, a TV pode ajustar a taxa automaticamente. Links independentes exigem nova abertura.</p></div></div>
+ <div id="player-controls" role="group" aria-label="Controles da reprodução" hidden>
+  <button id="skip-back-button" type="button">-10 segundos</button>
+  <button id="play-pause-button" type="button">Pausar</button>
+  <button id="skip-forward-button" type="button">+10 segundos</button>
+  <button id="next-episode-button" type="button" hidden>Próximo episódio</button>
+  <button id="close-player-button" type="button">Voltar</button>
+ </div>
 </section>
 <script src="core.js"></script>
 <script src="discovery.js"></script>
