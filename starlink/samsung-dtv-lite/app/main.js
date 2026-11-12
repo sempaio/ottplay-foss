@@ -72,7 +72,11 @@ function log(msg){text(state.playing?'video-status':'catalog-status',msg);consol
 function page(name){
  var sections=['login-screen','catalog-screen','player-screen'];
  for(var i=0;i<sections.length;i++)byId(sections[i]).hidden=sections[i]!==name;
- d.body.className=name==='player-screen'?'playing':'';
+ var experienceOn=!!(w.StarlinkExperience&&w.StarlinkExperience.active());
+ var pageClass=w.StarlinkDiscovery?
+  w.StarlinkDiscovery.pageClasses(name,experienceOn):
+  (name==='player-screen'?'playing':'');
+ d.body.className=pageClass;
  d.documentElement.className=name==='player-screen'?'playing':'';
  if(name==='player-screen')byId('back-button').focus();
 }
