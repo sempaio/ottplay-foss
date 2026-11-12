@@ -196,7 +196,7 @@ function play(item,publicSample,retryCount){
  text('video-timer','Aguardando quadros e progresso temporal...');
  if(!av){videoStatus('ERRO: API Samsung AVPlay indisponível no emulador');return;}
  var url;
- try{url=publicSample?'https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/master.m3u8':core.streamUrl(BASE,state.username,state.password,item);}
+ try{url=publicSample?'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4':core.streamUrl(BASE,state.username,state.password,item);}
  catch(e){videoStatus('Erro na URL do canal');return;}
  try{
   videoStatus('Abrindo vídeo com Samsung AVPlay...');
