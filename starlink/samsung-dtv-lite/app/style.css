@@ -129,3 +129,10 @@ body.playing.controls-visible .player-info{visibility:visible;opacity:1}
 body.playing:not(.controls-visible) #player-controls{opacity:0;visibility:hidden;pointer-events:none}
 body.playing.controls-visible #player-controls{opacity:1;visibility:visible}
 #player-controls #next-episode-button{background:#176b85}
+
+/* Second navigation level: only present for categories with useful subgroups. */
+#category-subgroups{display:flex;gap:.45vw;overflow-x:auto;white-space:nowrap;padding:.5vw .3vw 1.2vw;margin:0 0 .4vw;border-bottom:1px solid #2a4256}
+#category-subgroups[hidden]{display:none!important}
+#category-subgroups button{background:#1a2935;color:#e9f5fc;border:2px solid #426276;border-radius:8px;padding:.54vw .95vw;margin:0;min-height:44px;font-size:1.08vw;flex-shrink:0}
+#category-subgroups button.selected{background:#207b98;border-color:#52d9fc}
+.more-channels{background:#174054;color:#ecfcff;border:2px solid #49a3c4;border-radius:8px;padding:12px 20px;font-size:19px}
