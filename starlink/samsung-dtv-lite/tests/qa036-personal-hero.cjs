@@ -38,4 +38,7 @@ assert.equal(m.recordViewing(before,{key:'live:malicious'},10000,140000)['live:m
 assert.equal(m.personalHero(items,{'live:10':{ms:30000,lastAt:999999}},[]).reason,'watched');
 assert.equal(m.personalHero(items,{'live:10':{ms:30000,lastAt:999999}},[]).item.title,'Globo RJ');
 assert.equal(Object.keys(m.safeViewingStats(Object.fromEntries(Array.from({length:250},(_,i)=>['live:'+i,{ms:10000,lastAt:i}])))).length<=80,true,'bounded local usage');
+assert.equal(m.pageClasses('catalog-screen',true),'experience-ready','catalog keeps cinematic layout');
+assert.equal(m.pageClasses('player-screen',true),'playing','player remains transparent for AVPlay');
+assert.equal(m.pageClasses('login-screen',true),'','login is independent from catalog');
 console.log('QA036 personalized hero by viewing time: PASS');
