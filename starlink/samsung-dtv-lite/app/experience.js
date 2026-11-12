@@ -82,6 +82,24 @@ function init(b){
    if(!el('experience-detail').hidden){ev.preventDefault();ev.stopPropagation();closeDetail();return;}
   }
   if(!active()||!el('experience-detail').hidden||!el('quality-panel').hidden)return;
+  var bar=focused&&focused.parentElement;
+  var navigation=bar&&(bar.id==='live-subcategories'||bar.id==='category-subgroups');
+  if(navigation&&(key===37||key===39||key===38||key===40)){
+   var buttons=bar.querySelectorAll('button'),pos=-1;
+   for(var n=0;n<buttons.length;n++)if(buttons[n]===focused){pos=n;break;}
+   if(key===37&&pos>0){ev.preventDefault();buttons[pos-1].focus();buttons[pos-1].scrollIntoView({block:'nearest',inline:'nearest'});return;}
+   if(key===39&&pos>=0&&pos<buttons.length-1){ev.preventDefault();buttons[pos+1].focus();buttons[pos+1].scrollIntoView({block:'nearest',inline:'nearest'});return;}
+   if(key===38){
+    var prev=bar.id==='category-subgroups'?el('live-subcategories').querySelector('button.selected'):
+     el('experience-tabs').querySelector('button.selected');
+    if(prev){ev.preventDefault();prev.focus();return;}
+   }
+   if(key===40){
+    var below=bar.id==='live-subcategories'&&!el('category-subgroups').hidden?
+     el('category-subgroups').querySelector('button.selected'):el('experience-rails').querySelector('.stream-card');
+    if(below){ev.preventDefault();below.focus();below.scrollIntoView({block:'nearest'});return;}
+   }
+  }
   var rail=focused&&focused.closest?focused.closest('.stream-rail'):null;
   if(rail&&focused.classList.contains('stream-card')){
    var cards=rail.querySelectorAll('.stream-card'),idx=-1;
@@ -94,13 +112,14 @@ function init(b){
     if(neighbor&&neighbor.classList.contains('stream-rail')){
      var next=neighbor.querySelectorAll('.stream-card'),target=next[Math.min(idx,next.length-1)];
      if(target){ev.preventDefault();target.focus();target.scrollIntoView({block:'nearest',inline:'nearest'});}
-    }else if(key===38){var selected=el('experience-tabs').querySelector('button.selected');if(selected){ev.preventDefault();selected.focus();}}
+    }else if(key===38){var selected=!el('category-subgroups').hidden?el('category-subgroups').querySelector('button.selected'):!el('live-subcategories').hidden?el('live-subcategories').querySelector('button.selected'):el('experience-tabs').querySelector('button.selected');if(selected){ev.preventDefault();selected.focus();}}
     return;
    }
   }
   if(key===40&&focused&&focused.getAttribute&&focused.hasAttribute('data-shelf-filter')){
+   var navAction=!el('live-subcategories').hidden?el('live-subcategories').querySelector('button.selected'):null;
    var heroAction=el('hero-play');
-   var first=heroAction&&!heroAction.hidden?heroAction:el('experience-rails').querySelector('.stream-card');
+   var first=navAction||(heroAction&&!heroAction.hidden?heroAction:el('experience-rails').querySelector('.stream-card'));
    if(first){ev.preventDefault();first.focus();first.scrollIntoView({block:'nearest'});}
   }
  },true);
