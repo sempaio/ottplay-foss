@@ -10,3 +10,57 @@
 #keyboard-keys .tv-key{font-size:25px;padding:13px 6px;margin:0;min-height:55px;background:#163450;color:white}
 #keyboard-keys .tv-key-command{font-size:17px;background:#0d6584}
 #keyboard-keys .tv-key:focus{outline:5px solid #f127b8;background:#197a9d}
+
+/* QA 0.3.6: browsing and personalization, independent of validated AVPlay. */
+.experience-ready #catalog-screen{background:#080a0e;padding:2.2vw 3vw;overflow-y:auto}
+.experience-ready #catalog-screen>.columns,
+.experience-ready #catalog-screen>.actions,
+.experience-ready #catalog-screen>h1,
+.experience-ready #catalog-screen>#catalog-status{display:none}
+.experience-ready .top{margin-bottom:2vw}
+.experience-ready .logo{font-size:2.7vw}
+#experience-shell[hidden],#interests-panel[hidden],#experience-detail[hidden],#quality-panel[hidden]{display:none!important}
+#experience-shell{width:100%;padding-bottom:5vh}
+.experience-nav{position:sticky;top:-2.2vw;z-index:20;display:flex;align-items:center;gap:1.4vw;background:#080a0e;padding:1.1vw 0}
+#experience-tabs{display:flex;gap:.45vw;flex-shrink:0}
+#experience-tabs button,#interest-open{background:transparent;color:#e8eef5;border:2px solid transparent;border-radius:4px;font-size:1.35vw;margin:0;padding:.8vw .9vw}
+#experience-tabs button.selected{background:#143b52;border-bottom:4px solid #16b8de}
+#stream-search{flex:1;min-width:140px;background:#161b24;color:#fff;border:2px solid #364454;border-radius:6px;padding:1vw;font-size:1.25vw}
+#stream-search::placeholder{color:#bbcad9}
+#experience-status{color:#bac9d5;font-size:1.05vw;margin:.5vw 0 1.5vw}
+.stream-rail{margin:0 0 2.4vw}
+.rail-title{font-size:1.9vw;font-weight:750;margin:.5vw 0 1.3vw}
+.stream-strip{display:flex;gap:1.15vw;overflow-x:auto;scroll-behavior:smooth;padding:.45vw .35vw 1vw}
+.stream-card{display:flex;flex-direction:column;flex:0 0 11.7vw;width:11.7vw;min-width:140px;max-width:250px;align-self:flex-start;min-height:0;background:transparent;color:#f5f7fa;padding:0;margin:0;border-radius:6px;text-align:left;overflow:visible}
+.stream-card:focus{outline:4px solid #17caef;transform:scale(1.035)}
+.stream-poster{height:16.2vw;min-height:175px;max-height:340px;width:100%;position:relative;border-radius:6px;background:linear-gradient(140deg,#1e344c,#07101c);overflow:hidden;display:flex;align-items:center;justify-content:center}
+.stream-poster img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.poster-placeholder{color:#86bcd0;font-size:1.3vw;letter-spacing:.14em;font-weight:bold}
+.kind-chip{position:absolute;bottom:.45vw;left:.45vw;border-radius:4px;padding:.22vw .45vw;background:rgba(2,8,15,.83);color:#e6fcff;font-size:.76vw;font-weight:700;letter-spacing:.06em}
+.card-name{display:block;width:100%;font-size:1.12vw;line-height:1.3;min-height:2.6vw;padding-top:.52vw;white-space:normal;overflow:hidden}
+.watch-progress{display:block;height:4px;width:100%;background:#39424f;overflow:hidden}
+.watch-progress-fill{display:block;height:100%;background:#09c3ed}
+.empty-rail{font-size:1.2vw;color:#c0cbd5}
+#interests-panel{position:fixed;z-index:25;left:6vw;right:6vw;top:12vh;background:#101825;padding:2.2vw;border:2px solid #236280;box-shadow:0 15px 60px #000;border-radius:12px}
+#interests-panel h2{font-size:2vw}
+#interests-panel p{font-size:1.2vw;color:#bac9db}
+#interest-options{display:flex;flex-wrap:wrap;gap:.7vw}
+.interest-chip{display:inline-flex;align-items:center;gap:.6vw;font-size:1.22vw;min-height:48px;padding:.55vw 1vw;background:#24384d;border:1px solid #3c5b73;border-radius:8px}
+.interest-chip input{width:22px;height:22px}
+#interest-done{display:block}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+#experience-detail{position:fixed;inset:4vh 6vw;z-index:50;background:#0a111b;border:2px solid #224a65;border-radius:12px;box-shadow:0 0 0 100vw rgba(0,0,0,.8);overflow-y:auto}
+.detail-dialog{padding:2.1vw}
+.detail-heading{font-size:2.8vw;margin:1vw 0}
+.detail-copy{font-size:1.22vw;color:#c4d0dd}
+#season-buttons{display:flex;gap:.75vw;flex-wrap:wrap}
+#episode-list{display:flex;flex-direction:column;gap:.6vw;padding:1vw 0}
+.season-button,.episode-button{background:#17334a;color:#fff;text-align:left;font-size:1.35vw;margin:0}
+.episode-button{width:100%;min-height:60px}
+#quality-button{display:inline-block;background:#123d59;color:white;margin-left:12px}
+#quality-button[hidden]{display:none}
+#quality-panel{background:#101c2b;color:white;border:1px solid #4b8cab;border-radius:10px;padding:1vw;margin-top:10px;min-width:310px}
+#quality-panel h3{font-size:23px;margin:0 0 8px}
+#quality-panel p{font-size:15px;max-width:400px;color:#d7e0eb}
+#quality-options{display:flex;flex-direction:column;gap:8px}
+.quality-choice{display:block;text-align:left;background:#1d4660;color:#fff;margin:0;padding:12px 18px;font-size:19px}
