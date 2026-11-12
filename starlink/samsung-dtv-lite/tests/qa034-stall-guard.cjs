@@ -19,4 +19,6 @@ assert.equal(core.shouldReconnect(state({bufferingSince:1200}),32000),false,'do 
 assert.equal(core.shouldReconnect(state({bufferingSince:1200}),46200),true,'restart if rebuffer exceeded 45 seconds');
 assert.equal(core.shouldReconnect(state({retryCount:3}),120000),false,'never loop on a permanently failed stream');
 assert.equal(core.shouldReconnect(state({bufferingSince:1200,retryCount:3}),120000),false,'terminal failure stays stopped');
+assert.equal(core.isStalled(state({bufferingSince:1200,retryCount:3}),13000),false,'do not flag third attempt prematurely');
+assert.equal(core.isStalled(state({bufferingSince:1200,retryCount:3}),46200),true,'flag third attempt only after real prolonged stall');
 console.log('QA034 stall guard: PASS');
