@@ -1,8 +1,23 @@
-# STARLINK DTV Samsung — QA 0.3.0 (M81 / Tizen)
+# STARLINK DTV Samsung — QA 0.3.4 (M81 / Tizen)
 
-**Status:** versão de testes funcional no emulador; não homologada para loja Samsung ou TV física.
+**Status:** QA 0.3.4 instalada e inicializada no emulador; reprodução contínua de vídeo NÃO aprovada. Não homologada para loja Samsung nem TV física.
 
 O app Tizen enxuto usa login Xtream por usuário e senha, catálogo M81 e AVPlay nativo. Esta branch preserva as QA 0.2.8 e 0.2.9.
+
+## Auditoria de 11/11/2026 — QA 0.3.4
+
+- Instalação e abertura no emulador confirmadas com perfil de assinatura Samsung `M81_SAMSUNG_VALIDATION`.
+- Login M81 e catálogo funcionaram após corrigir a digitação com teclado remoto.
+- TV Brasil (720p) chegou ao AVPlay mas mostrou tela preta, sem eventos de progresso temporal; em tentativa subsequente foi registrado `InvalidAccessError: PLAYER_ERROR_CONNECTION_FAILED`.
+- Vídeo público de diagnóstico também ficou sem progresso, parado em preparação. Isso não demonstra defeito exclusivo do M81.
+- Teste HTTP isolado no computador recebeu o manifesto HLS, os quatro rendimentos e um segmento MPEG-TS válido para cada qualidade. Houve também uma tentativa de segmento com timeout; a saúde da fonte varia.
+- Um manifesto de variante contém `#EXT-X-INDEPENDENT-SEGMENTS`, tag indicada pela documentação Samsung como não suportada. A relação causal com o erro AVPlay ainda não está comprovada.
+- A lógica QA 0.3.4 aguarda 30 segundos de preparação antes de reiniciar, tolera buffering curto, limita reconexões automáticas a três e permite tentativa manual depois de falha persistente.
+- Regressão local mínima: `node tests/test-core.cjs`, `node tests/qa034-stall-guard.cjs`, `node --check app/main.js`. Os demais testes da UI exigem Playwright instalado localmente.
+- **Critério de aceite pendente:** vídeo M81 com quadros distintos medidos por pelo menos 60 segundos, sem travamento recorrente, e teste na TV Samsung real.
+- Não modificar painel/playlist em produção para experimentar normalização HLS. Testar em ambiente isolado.
+
+## Histórico anterior
 
 ## Evidências em 09/11/2026
 
