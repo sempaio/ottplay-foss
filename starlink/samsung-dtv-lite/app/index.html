@@ -29,7 +29,37 @@
 </section>
 <section id="catalog-screen" class="page" hidden>
  <div class="top"><div class="logo">STARLINK <b>DTV</b></div><span id="catalog-count"></span><button id="exit-button">Sair</button></div>
- <h1>Canais ao vivo</h1>
+ <div id="experience-shell" hidden>
+ <div class="experience-nav">
+  <nav id="experience-tabs" aria-label="Biblioteca STARLINK">
+   <button type="button" data-shelf-filter="all" class="selected">Início</button>
+   <button type="button" data-shelf-filter="live">Canais ao vivo</button>
+   <button type="button" data-shelf-filter="movie">Filmes</button>
+   <button type="button" data-shelf-filter="series">Séries</button>
+   <button type="button" data-shelf-filter="for-you">Para você</button>
+  </nav>
+  <label for="stream-search" class="sr-only">Pesquisar todos os conteúdos</label>
+  <input id="stream-search" type="search" placeholder="Buscar canais, filmes e séries" autocomplete="off">
+  <button id="interest-open" type="button">Meus gostos</button>
+ </div>
+ <section id="interests-panel" hidden aria-label="Preferências de conteúdos">
+  <h2>O que você gosta de assistir?</h2>
+  <p>Suas escolhas personalizam canais, filmes e séries nesta TV.</p>
+  <div id="interest-options"></div>
+  <button id="interest-done" type="button">Aplicar preferências</button>
+ </section>
+ <p id="experience-status" role="status">Preparando sua biblioteca...</p>
+ <div id="experience-rails"></div>
+ <div id="experience-detail" hidden role="dialog" aria-label="Detalhes do conteúdo">
+  <div class="detail-dialog">
+   <button id="detail-close" type="button">Voltar ao catálogo</button>
+   <div id="detail-content"></div>
+   <div id="season-buttons"></div>
+   <div id="episode-list"></div>
+  </div>
+ </div>
+</div>
+<h1>Canais ao vivo</h1>
  <div id="catalog-status" role="status">Preparando lista...</div>
  <div class="columns"><div id="categories" class="items"></div><div id="channels" class="items"></div></div>
  <div class="actions"><button id="culture-button">Reproduzir TV Cultura</button><button id="public-demo-button">Teste MP4 público</button></div>
@@ -38,5 +68,7 @@
  <div class="player-info"><h2 id="now-playing">Aguardando vídeo...</h2><p id="video-status">Inicializando AVPlay</p><p id="video-timer">Tempo de reprodução: aguardando eventos</p><button id="back-button">Voltar aos canais</button><button id="retry-button" type="button" hidden>Tentar este canal novamente</button></div>
 </section>
 <script src="core.js"></script>
+<script src="discovery.js"></script>
+<script src="experience.js"></script>
 <script src="main.js"></script>
 </body></html>
