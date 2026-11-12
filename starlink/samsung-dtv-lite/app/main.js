@@ -2,7 +2,7 @@
 'use strict';
 var BASE='https://panel.taila5c5c2.ts.net';
 var core=w.StarlinkLiteCore;
-var state={username:'',password:'',categories:[],channels:[],visible:[],culture:null,current:null,events:0,lastTime:-1,playStart:0,playing:false,logged:false,generation:0,bufferStarts:0,bufferingSince:0,bufferTotalMs:0,remembered:false,lastAdvanceAt:0,stableAt:0,progressEvents:0,retryCount:0,publicSample:false};
+var state={username:'',password:'',categories:[],channels:[],visible:[],culture:null,current:null,events:0,lastTime:-1,playStart:0,playing:false,logged:false,generation:0,bufferStarts:0,bufferingSince:0,bufferTotalMs:0,remembered:false,lastAdvanceAt:0,stableAt:0,progressEvents:0,retryCount:0,publicSample:false,preparingSince:0};
 var av=w.webapis&&w.webapis.avplay;
 var LOGIN_KEY='starlink-dtv-qa032-remembered-account';
 function clearSavedLogin(){try{w.localStorage.removeItem(LOGIN_KEY);}catch(_e){}}
@@ -165,6 +165,7 @@ function stop(){
  // Invalida callbacks de prepareAsync e eventos AVPlay de transmissões anteriores.
  state.generation++;
  state.playing=false;
+ state.preparingSince=0;
  if(!av)return;
  try{av.stop();}catch(e){}
  try{av.close();}catch(e){}
@@ -172,7 +173,7 @@ function stop(){
 function videoStatus(msg){text('video-status',msg);console.log('STARLINK_AVPLAY '+msg);}
 function play(item,publicSample,retryCount){
  if(!state.logged)return;
- stop();state.current=item;state.events=0;state.lastTime=-1;state.playStart=Date.now();state.playing=true;state.bufferStarts=0;state.bufferingSince=0;state.bufferTotalMs=0;state.retryCount=retryCount||0;state.progressEvents=0;state.lastAdvanceAt=Date.now();state.stableAt=0;state.publicSample=!!publicSample;
+ stop();state.current=item;state.events=0;state.lastTime=-1;state.playStart=Date.now();state.playing=true;state.bufferStarts=0;state.bufferingSince=0;state.bufferTotalMs=0;state.retryCount=retryCount||0;state.progressEvents=0;state.lastAdvanceAt=Date.now();state.stableAt=0;state.publicSample=!!publicSample;state.preparingSince=0;
  var playbackGeneration=state.generation;
  function isCurrentPlayback(){return state.playing&&state.logged&&state.generation===playbackGeneration;}
  page('player-screen');
@@ -210,12 +211,16 @@ function play(item,publicSample,retryCount){
    onerror:function(err){if(isCurrentPlayback())videoStatus('Erro AVPlay: '+String(err));},
    onerrormsg:function(err,msg){if(isCurrentPlayback())videoStatus('Erro AVPlay: '+String(err)+' '+String(msg));}
   });
+  state.preparingSince=Date.now();
+  videoStatus('Preparando video no decodificador Samsung...');
   av.prepareAsync(function(){
    if(!isCurrentPlayback())return;
+   state.preparingSince=0;
+   state.lastAdvanceAt=Date.now();
    try{av.play();if(isCurrentPlayback())videoStatus('Play acionado; verificando movimento...');}
    catch(err){if(isCurrentPlayback())videoStatus('Falha ao iniciar: '+err.message);}
-  },function(err){if(isCurrentPlayback())videoStatus('Falha ao preparar vídeo: '+String(err));});
- }catch(err){videoStatus('Falha ao abrir transmissão: '+err.message);}
+  },function(err){if(isCurrentPlayback()){state.preparingSince=0;videoStatus('Falha ao preparar vídeo: '+String(err));}});
+ }catch(err){state.preparingSince=0;videoStatus('Falha ao abrir transmissão: '+err.message);}
 }
 function back(){stop();page('catalog-screen');text('catalog-status','Pronto para selecionar outro canal.');var selected=byId('categories').querySelector('.selected')||byId('categories').firstElementChild;if(selected)selected.focus();}
 function logout(){if(remoteKeyboardField)closeRemoteKeyboard();clearSavedLogin();stop();state.username='';state.password='';state.logged=false;state.channels=[];state.categories=[];state.culture=null;byId('username').value='';byId('password').value='';page('login-screen');byId('username').focus();text('login-status','Sessão encerrada.');}
