@@ -240,10 +240,15 @@
   }
   return selected?{item:selected,reason:'interests',watchMs:0}:null;
  }
+ function pageClasses(page,hasExperience){
+  return page==='player-screen'?'playing':
+   page==='catalog-screen'&&hasExperience?'experience-ready':'';
+ }
  return {normalize:normalize,normalizeEpisode:normalizeEpisode,episodesFromDetail:episodesFromDetail,
   nextEpisode:nextEpisode,playbackUrl:playbackUrl,rememberProgress:rememberProgress,
   resumePosition:resumePosition,continueItems:continueItems,recommend:recommend,
   shelves:shelves,safeHistory:safeHistory,qualityLabel:qualityLabel,stationName:stationName,
   groupLive:groupLive,chooseQuality:chooseQuality,useAdaptiveStart:useAdaptiveStart,
-  safeViewingStats:safeViewingStats,recordViewing:recordViewing,personalHero:personalHero};
+  safeViewingStats:safeViewingStats,recordViewing:recordViewing,personalHero:personalHero,
+  pageClasses:pageClasses};
 });
