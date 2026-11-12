@@ -4,7 +4,7 @@
 var m=w.StarlinkDiscovery,bridge=null,ready=false;
 var data={live:[],movie:[],series:[]},raw={live:[],movie:[],series:[]},categoryNames={live:{},movie:{},series:{}};
 var loading={},loaded={},failed={},filter='all',search='',history={},interests=[];
-var current=null,activeGroup=null,episodes=[],details={},lastStore=0,requested={};
+var current=null,activeGroup=null,episodes=[],details={},lastStore=0,requested={},episodeRecords={};
 var INTERESTS=['Evangélico','Anime','Ação','Aventura','Ficção científica','Documentários','Suspense','Terror','Romance','Clássicos','Lançamentos','Desenhos antigos','Coisas antigas','Brasileiro'];
 function el(id){return d.getElementById(id);}
 function node(tag,cls,text){
@@ -14,7 +14,11 @@ function norm(v){var s=String(v||'').toLowerCase();try{return s.normalize('NFD')
 function storeKey(kind){return 'starlink-dtv-'+kind+'-v1-'+String(bridge&&bridge.accountKey||'local');}
 function read(k,fallback){try{return JSON.parse(w.localStorage.getItem(k))||fallback;}catch(e){return fallback;}}
 function store(k,v){try{w.localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
-function all(){return data.live.concat(data.movie,data.series);}
+function all(){
+ var extra=Object.keys(episodeRecords).slice(-40).map(function(k){return episodeRecords[k];})
+  .filter(function(e){return e&&m.resumePosition(history,e)>0;});
+ return data.live.concat(data.movie,data.series,extra);
+}
 function active(){return ready && !el('catalog-screen').hidden;}
 function status(){
  var text=data.live.length+' canais · '+data.movie.length+' filmes · '+data.series.length+' séries';
@@ -23,10 +27,24 @@ function status(){
  el('experience-status').textContent=text;
 }
 function init(b){
- if(ready||!m||!b||typeof b.request!=='function')return;
+ if(!m||!b||typeof b.request!=='function')return;
+ if(ready){
+  if(String(bridge.accountKey)===String(b.accountKey)){bridge=b;return;}
+  bridge=b;data={live:[],movie:[],series:[]};raw={live:[],movie:[],series:[]};
+  categoryNames={live:{},movie:{},series:{}};loaded={};loading={};failed={};
+  activeGroup=null;current=null;currentSeries=null;episodeList=[];details={};
+  history=m.safeHistory(read(storeKey('watch-history'),{}));
+  interests=read(storeKey('interests'),[]);if(!Array.isArray(interests))interests=[];
+  episodeRecords=read(storeKey('episodes'),{});
+  if(!episodeRecords||typeof episodeRecords!=='object')episodeRecords={};
+  search='';el('stream-search').value='';filter='all';
+  el('experience-detail').hidden=true;el('quality-panel').hidden=true;render();return;
+ }
  ready=true;bridge=b;el('experience-shell').hidden=false;
  d.body.classList.add('experience-ready');
  history=m.safeHistory(read(storeKey('watch-history'),{}));
+ episodeRecords=read(storeKey('episodes'),{});
+ if(!episodeRecords||typeof episodeRecords!=='object')episodeRecords={};
  interests=read(storeKey('interests'),[]);
  if(!Array.isArray(interests))interests=[];
  var tabs=el('experience-tabs').querySelectorAll('[data-shelf-filter]');
@@ -183,6 +201,16 @@ function playQuality(item,mode){
 var currentQuality='auto';
 function onPlaybackStart(item){
  current=item;
+ if(item&&item.kind==='episode'){
+  episodeRecords[item.key]={
+   kind:'episode',key:item.key,id:item.id,title:item.name||item.title||'Episódio',
+   seriesKey:item.seriesKey||'',seriesTitle:item.seriesTitle||'',
+   extension:item.extension||'ts',image:item.image||'',category:item.category||'Séries'
+  };
+  var ids=Object.keys(episodeRecords);
+  for(var i=0;i<ids.length-45;i++)delete episodeRecords[ids[i]];
+  store(storeKey('episodes'),episodeRecords);
+ }
  el('quality-panel').hidden=true;
  var button=el('quality-button');
  var isLive=item&&item.kind==='live';
