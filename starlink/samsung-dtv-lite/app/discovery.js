@@ -208,7 +208,7 @@
   out[target]={ms:Math.min(604800000,old.ms+delta),lastAt:Math.max(0,Math.floor(Number(now)||0))};
   return safeViewingStats(out);
  }
- function personalHero(items,viewing,interests){
+ function personalHero(items,viewing,interests,history,episodeRecords){
   if(!Array.isArray(items)||!items.length)return null;
   var stats=safeViewingStats(viewing),winner=null,weight=0,timestamp=0;
   for(var i=0;i<items.length;i++){
@@ -225,6 +225,23 @@
    }
   }
   if(winner)return {item:winner,reason:'watched',watchMs:weight};
+  // Older QA releases saved resume progress but not verified watch-time totals.
+  // Use those records as a *recently watched* fallback, not as time watched.
+  var old=safeHistory(history),records=episodeRecords||{};
+  var ordered=Object.keys(old).sort(function(a,b){return old[b].updatedAt-old[a].updatedAt;});
+  for(var p=0;p<ordered.length;p++){
+   var savedKey=ordered[p],target=savedKey;
+   if(savedKey.indexOf('episode:')===0){
+    var known=records[savedKey];
+    target=known&&/^(series):\d+$/.test(val(known.seriesKey))?known.seriesKey:'';
+   }
+   if(!target)continue;
+   for(var x=0;x<items.length;x++){
+    if(items[x]&&items[x].key===target){
+     return {item:items[x],reason:'resume',watchMs:0};
+    }
+   }
+  }
   var tastes=Array.isArray(interests)?interests.slice(0,16):[];
   if(!tastes.length)return null;
   var selected=null,best=0;
