@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets" id="https://starlink.local/tv/qa-lite-keyboard-033" version="0.3.8" viewmodes="maximized">
+<widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets" id="https://starlink.local/tv/qa-lite-keyboard-033" version="1.0.0" viewmodes="maximized">
 <tizen:application id="STLTVR0011.StarlinkDTV" package="STLTVR0011" required_version="5.5"/>
-<content src="index.html"/><name>STARLINK DTV QA 0.3.8</name><icon src="icon.png"/>
+<content src="index.html"/><name>STARLINK DTV</name><icon src="icon.png"/>
 <tizen:profile name="tv-samsung"/>
 <tizen:privilege name="http://tizen.org/privilege/internet"/>
 <tizen:privilege name="http://tizen.org/privilege/tv.inputdevice"/>
