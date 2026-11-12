@@ -136,3 +136,41 @@ body.playing.controls-visible #player-controls{opacity:1;visibility:visible}
 #category-subgroups button{background:#1a2935;color:#e9f5fc;border:2px solid #426276;border-radius:8px;padding:.54vw .95vw;margin:0;min-height:44px;font-size:1.08vw;flex-shrink:0}
 #category-subgroups button.selected{background:#207b98;border-color:#52d9fc}
 .more-channels{background:#174054;color:#ecfcff;border:2px solid #49a3c4;border-radius:8px;padding:12px 20px;font-size:19px}
+
+/* QA 0.3.8: EPG metadata stays off-screen until requested. No images preloaded. */
+#guide-current-button[hidden],#guide-player-button[hidden],#epg-panel[hidden]{display:none!important}
+.guide-catalog-button{
+ margin:0 0 1.2vw .4vw;min-height:48px;padding:.6vw 1vw;
+ border:2px solid #1689ab;border-radius:9px;background:#10455b;color:#fff;
+ font-size:1.12vw;max-width:100%;text-align:left
+}
+.guide-catalog-button:focus,#epg-panel button:focus,.epg-program:focus{
+ outline:4px solid #24d1f4;outline-offset:2px
+}
+#guide-player-button{background:#176b85;color:#fff}
+#epg-panel{
+ position:fixed;inset:0;z-index:120;background:rgba(2,7,14,.94);
+ display:flex;align-items:center;justify-content:center;padding:5vh 6vw
+}
+.guide-dialog{
+ display:flex;flex-direction:column;width:min(100%,1280px);max-height:90vh;
+ background:#0b1927;border:2px solid #3284a5;border-radius:16px;
+ padding:1.8vw 2vw;box-shadow:0 18px 50px rgba(0,0,0,.6)
+}
+.guide-dialog h2{font-size:2.2vw;margin:.6vw 0 .4vw}
+#epg-status{font-size:1.14vw;color:#e1eaf4;line-height:1.5}
+#epg-list{overflow-y:auto;min-height:4vh;flex:1;scroll-behavior:smooth}
+.epg-program{border-bottom:1px solid #294256;padding:1vw .8vw;border-radius:4px}
+.epg-program.is-current{background:#123950;border-left:5px solid #22cee9}
+.epg-program-time{font-size:1.05vw;color:#a8e6ee;margin:0 0 .4vw}
+.epg-program-title{font-size:1.5vw;margin:0 0 .3vw}
+.epg-program-desc{font-size:1.09vw;color:#e0e8ef;line-height:1.5;margin:.3vw 0}
+.guide-actions{display:flex;justify-content:flex-end;gap:1vw;padding-top:1vw}
+.guide-actions button,#epg-close{min-height:48px;background:#15536a;color:#fff;padding:.65vw 1.4vw}
+.guide-actions button:last-child{background:#18728e}
+@media(max-width:1000px){
+ .guide-dialog{padding:22px}.guide-dialog h2{font-size:25px}
+ #epg-status,.epg-program-desc{font-size:16px}
+ .epg-program-time{font-size:15px}.epg-program-title{font-size:21px}
+ .guide-catalog-button{font-size:16px}
+}
