@@ -29,6 +29,13 @@ assert.equal(hero.item.key,'series:90','episode viewing promotes series artwork'
 assert.equal(hero.item.image,'https://img.test/inferno.jpg');
 for(let i=0;i<4;i++)viewing=m.recordViewing(viewing,film,60000,130000+i*1000);
 assert.equal(m.personalHero(items,viewing,[]).item.key,'movie:52','most watched movie becomes background');
+const previousSession={'episode:881':{positionMs:12000,durationMs:90000,updatedAt:123000}};
+const knownEpisodes={'episode:881':{seriesKey:'series:90'}};
+const migrated=m.personalHero(items,{},[],previousSession,knownEpisodes);
+assert.equal(migrated.item.key,'series:90','existing continue-watching history promotes the series');
+assert.equal(migrated.reason,'resume','recent history is not falsely counted as watch minutes');
+const resumedFilm=m.personalHero(items,{},[],{'movie:52':{positionMs:15000,durationMs:90000,updatedAt:124000}},knownEpisodes);
+assert.equal(resumedFilm.item.key,'movie:52');
 assert.equal(m.personalHero(items,{},['aventura']).item.key,'movie:52','interests are useful with no history');
 assert.equal(m.personalHero(items,{},[]),null,'no interest and no history uses brand background');
 const before=m.safeViewingStats(viewing);
