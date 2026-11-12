@@ -277,7 +277,11 @@
    if(!a.id)return -1;
    if(!b.id)return 1;
    var rank=function(x){
-    return /^(abertos?|canais?\s+abertos?|tv\s+aberta)$/i.test(norm(x.title))?0:1;
+    var name=norm(x.title);
+    if(/^(abertos?|canais?\s+abertos?|tv\s+aberta)$/.test(name))return 0;
+    if(/^(esportes?|canais?\s+esportes?)$/.test(name))return 1;
+    if(/^(documentarios?|documentaries)$/.test(name))return 2;
+    return 3;
    };
    return rank(a)-rank(b)||norm(a.title).localeCompare(norm(b.title));
   });
