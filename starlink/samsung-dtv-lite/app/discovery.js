@@ -34,6 +34,7 @@
   return {key:'episode:'+e.id,id:val(e.id),kind:'episode',
    seriesKey:parent.key,seriesTitle:parent.title,title:val(e.title||e.info&&e.info.name||'Episódio'),
    category:parent.category,image:parent.image,
+   description:val(e.info&& (e.info.plot||e.info.description)||e.plot||e.description||''),
    season:Number(e.season)||1,episode:Number(e.episode_num)||1,
    extension:ext(e.container_extension,'ts')};
  }
