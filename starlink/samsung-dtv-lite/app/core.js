@@ -29,6 +29,7 @@
     // Avoid restarting live streams during normal AVPlay buffering, and cap recovery loops.
     function isStalled(state,now){
         if(!state || typeof state.lastAdvanceAt!=='number')return false;
+        if(state.preparingSince>0)return now-state.preparingSince>=30000;
         if(state.bufferingSince>0)return now-state.bufferingSince>=45000;
         return now-state.lastAdvanceAt>=(state.progressEvents>0?15000:20000);
     }
