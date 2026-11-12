@@ -6,6 +6,7 @@ var data={live:[],movie:[],series:[]},raw={live:[],movie:[],series:[]},categoryN
 var loading={},loaded={},failed={},filter='all',search='',history={},interests=[],viewing={},liveSourceCategories=[],liveCategoryId='',liveLimit=60,selectedGroup='',selectedSub='',facetCache={};
 var current=null,activeGroup=null,episodes=[],details={},lastStore=0,lastViewingStore=0,requested={},episodeRecords={},heroKey='';
 var guideItem=null,lastFocusedLive=null,guideReturnFocus=null,guideToken=0,metaCache=meta&&meta.cache(65),movieDetailItem=null;
+var movieSourceCategories=[],movieChoiceToken=0,movieCache={},movieCacheOrder=[],movieDirectory=null;
 var INTERESTS=['Evangélico','Anime','Ação','Aventura','Ficção científica','Documentários','Suspense','Terror','Romance','Clássicos','Lançamentos','Desenhos antigos','Coisas antigas','Brasileiro'];
 function el(id){return d.getElementById(id);}
 function node(tag,cls,text){
@@ -22,7 +23,7 @@ function all(){
 }
 function active(){return ready && !el('catalog-screen').hidden;}
 function status(){
- var text=data.live.length+' canais · '+data.movie.length+' filmes · '+data.series.length+' séries';
+ var text=data.live.length+' canais · '+data.movie.length+' filmes carregados · '+data.series.length+' séries';
  if(loading.movie||loading.series)text+=' · Carregando catálogo...';
  if(failed.movie||failed.series)text+=' · Algumas listas indisponíveis (selecione a aba para tentar novamente)';
  el('experience-status').textContent=text;
@@ -33,6 +34,7 @@ function init(b){
   if(String(bridge.accountKey)===String(b.accountKey)){bridge=b;return;}
   bridge=b;data={live:[],movie:[],series:[]};raw={live:[],movie:[],series:[]};
   categoryNames={live:{},movie:{},series:{}};loaded={};loading={};failed={};
+  movieSourceCategories=[];movieDirectory=null;movieCache={};movieCacheOrder=[];movieChoiceToken++;
   activeGroup=null;current=null;currentSeries=null;episodeList=[];details={};
   guideItem=null;lastFocusedLive=null;movieDetailItem=null;guideToken++;if(metaCache)metaCache.clear();el('epg-panel').hidden=true;
   history=m.safeHistory(read(storeKey('watch-history'),{}));
@@ -55,7 +57,12 @@ function init(b){
  for(var i=0;i<tabs.length;i++)tabs[i].onclick=function(){
   filter=this.getAttribute('data-shelf-filter');liveLimit=60;selectedGroup='';selectedSub='';
   for(var j=0;j<tabs.length;j++)tabs[j].classList.toggle('selected',tabs[j]===this);
-  if(filter==='movie'||filter==='series')loadKind(filter);
+  if(filter==='movie'){
+   if(movieSourceCategories.length){
+    selectedGroup=movieDirectory&&movieDirectory.defaultGroup||'';
+    loadMovieSelection();
+   }else loadKind('movie');
+  }else if(filter==='series')loadKind('series');
   if(filter==='for-you'){loadKind('series');loadKind('movie');}
   render();
  };
@@ -155,7 +162,7 @@ function onLiveLoaded(channels,categories){
  loaded.live=true;render();
  // Series summary is smaller; defer large movie load to keep initial navigation quick.
  w.setTimeout(function(){if(ready)loadKind('series');},700);
- w.setTimeout(function(){if(ready)loadKind('movie');},3500);
+ // Load movies only when requested: avoids 17 MB on live-TV startup.
 }
 function normalizeRows(kind,rows){
  raw[kind]=rows;
@@ -166,8 +173,69 @@ function normalizeRows(kind,rows){
  }
  data[kind]=kind==='live'?m.groupLive(result):result;
 }
+function loadMovieIndex(){
+ if(!ready||loaded.movie||loading.movie)return;
+ loading.movie=true;delete failed.movie;status();
+ bridge.request('get_vod_categories',function(categories){
+  if(!Array.isArray(categories)||!categories.length){finishError('movie');return;}
+  movieSourceCategories=categories.filter(function(c){return c&&c.category_id&&c.category_name;});
+  categoryNames.movie={};
+  movieSourceCategories.forEach(function(c){
+   categoryNames.movie[String(c.category_id)]=String(c.category_name);
+  });
+  movieDirectory=m.movieSourceDirectory(movieSourceCategories);
+  facetCache.movie=movieDirectory;
+  loaded.movie=true;loading.movie=false;
+  if(filter==='movie')selectedGroup=movieDirectory.defaultGroup;
+  render();
+  if(filter==='movie'||filter==='for-you')loadMovieSelection();
+ },function(){finishError('movie');});
+}
+function loadMovieSelection(){
+ if(!ready||!movieSourceCategories.length)return;
+ var requestIds=m.movieSourceIds(movieSourceCategories,selectedGroup,selectedSub);
+ // Avoid expanding a very large group all at once on older Samsung hardware.
+ // Every source category remains individually accessible through subfilters.
+ requestIds=requestIds.slice(0,4);
+ var token=++movieChoiceToken,acc=[],index=0;
+ loading.movie=true;delete failed.movie;
+ data.movie=[];render();
+ function next(){
+  if(token!==movieChoiceToken)return;
+  if(index>=requestIds.length){
+   loading.movie=false;
+   if(!acc.length)failed.movie=true;
+   status();render();return;
+  }
+  var id=requestIds[index++];
+  if(movieCache[id]){
+   acc=acc.concat(movieCache[id]);data.movie=acc.slice();
+   render();next();return;
+  }
+  bridge.request('get_vod_streams',function(rows){
+   if(token!==movieChoiceToken)return;
+   if(Array.isArray(rows)){
+    var normalized=[];
+    for(var i=0;i<rows.length;i++){
+     var item=m.normalize('movie',rows[i],categoryNames.movie[id]);
+     if(item)normalized.push(item);
+    }
+    movieCache[id]=normalized;
+    movieCacheOrder.push(id);
+    if(movieCacheOrder.length>5)delete movieCache[movieCacheOrder.shift()];
+    acc=acc.concat(normalized);data.movie=acc.slice();
+    render();
+   }
+   next();
+  },function(){
+   if(token===movieChoiceToken)next();
+  },{category_id:id});
+ }
+ next();
+}
 function loadKind(kind){
- if(!ready||loaded[kind]||loading[kind]||!/^(movie|series)$/.test(kind))return;
+ if(kind==='movie'){loadMovieIndex();return;}
+ if(!ready||loaded[kind]||loading[kind]||kind!=='series')return;
  loading[kind]=true;delete failed[kind];status();
  var action=kind==='movie'?'get_vod_streams':'get_series';
  var categoriesAction=kind==='movie'?'get_vod_categories':'get_series_categories';
@@ -236,15 +304,16 @@ function renderCategoryControls(){
  if(!(filter==='live'||filter==='movie'||filter==='series')||search.trim().length>=2){
   root.hidden=true;subroot.hidden=true;return;
  }
- var facets=facetCache[filter]||m.categoryGroups(data[filter],filter);
+ var facets=filter==='movie'&&movieDirectory?movieDirectory:(facetCache[filter]||m.categoryGroups(data[filter],filter));
  facetCache[filter]=facets;
  root.hidden=false;
  facets.groups.forEach(function(group){
-  var btn=node('button',selectedGroup===group.key?'selected':'',group.title+' ('+group.count+')');
+  var btn=node('button',selectedGroup===group.key?'selected':'',group.title+(filter==='movie'?'':' ('+group.count+')'));
   btn.type='button';btn.setAttribute('data-facet-group',group.key);
   btn.setAttribute('aria-pressed',selectedGroup===group.key?'true':'false');
   btn.onclick=function(){
    selectedGroup=group.key;selectedSub='';liveLimit=filter==='live'?60:36;
+   if(filter==='movie')loadMovieSelection();
    render();
    var next=el('live-subcategories').querySelectorAll('button');
    for(var j=0;j<next.length;j++)
@@ -257,11 +326,12 @@ function renderCategoryControls(){
  if(subs.length<3){subroot.hidden=true;return;}
  subroot.hidden=false;
  subs.forEach(function(sub){
-  var btn=node('button',selectedSub===sub.key?'selected':'',sub.title+' ('+sub.count+')');
+  var btn=node('button',selectedSub===sub.key?'selected':'',sub.title+(filter==='movie'?'':' ('+sub.count+')'));
   btn.type='button';btn.setAttribute('data-facet-sub',sub.key);
   btn.setAttribute('aria-pressed',selectedSub===sub.key?'true':'false');
   btn.onclick=function(){
-   selectedSub=sub.key;liveLimit=filter==='live'?60:36;render();
+   selectedSub=sub.key;liveLimit=filter==='live'?60:36;
+   if(filter==='movie')loadMovieSelection();render();
    var next=el('category-subgroups').querySelectorAll('button');
    for(var j=0;j<next.length;j++)
     if(next[j].getAttribute('data-facet-sub')===sub.key){next[j].focus();break;}
