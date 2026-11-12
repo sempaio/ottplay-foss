@@ -169,6 +169,11 @@
   });
   return groups;
  }
+ function useAdaptiveStart(item){
+  if(!item)return false;
+  var suffix=val(item.extension||item.container_extension).toLowerCase();
+  return suffix==='m3u8';
+ }
  function chooseQuality(group,quality){
   if(!group||!group.qualities||!group.qualities.length)return group;
   if(!quality||quality==='auto')return group.qualities[0].item;
@@ -180,5 +185,5 @@
   nextEpisode:nextEpisode,playbackUrl:playbackUrl,rememberProgress:rememberProgress,
   resumePosition:resumePosition,continueItems:continueItems,recommend:recommend,
   shelves:shelves,safeHistory:safeHistory,qualityLabel:qualityLabel,stationName:stationName,
-  groupLive:groupLive,chooseQuality:chooseQuality};
+  groupLive:groupLive,chooseQuality:chooseQuality,useAdaptiveStart:useAdaptiveStart};
 });
