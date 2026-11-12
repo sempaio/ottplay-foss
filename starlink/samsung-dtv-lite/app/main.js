@@ -78,7 +78,13 @@ function page(name){
   (name==='player-screen'?'playing':'');
  d.body.className=pageClass;
  d.documentElement.className=name==='player-screen'?'playing':'';
- if(name==='player-screen')byId('back-button').focus();
+ if(name==='player-screen'){
+  byId('back-button').focus();
+  showPlaybackControls();
+ }else{
+  d.body.classList.remove('controls-visible');
+  byId('player-controls').hidden=true;
+ }
 }
 function request(action,success,fail,extra){
  var xhr=new XMLHttpRequest();
@@ -206,22 +212,69 @@ function stop(){
  // Invalida callbacks de prepareAsync e eventos AVPlay de transmissões anteriores.
  state.generation++;
  state.playing=false;
+ state.paused=false;
  state.preparingSince=0;
  if(!av)return;
  try{av.stop();}catch(e){}
  try{av.close();}catch(e){}
 }
 function videoStatus(msg){text('video-status',msg);console.log('STARLINK_AVPLAY '+msg);}
+var controlsDelay=null;
+function showPlaybackControls(){
+ if(!state.playing)return;
+ byId('player-controls').hidden=false;
+ d.body.classList.add('controls-visible');
+ byId('skip-back-button').hidden=!w.StarlinkDiscovery||!w.StarlinkDiscovery.isSeekable(state.current);
+ byId('skip-forward-button').hidden=byId('skip-back-button').hidden;
+ byId('play-pause-button').textContent=state.paused?'Reproduzir':'Pausar';
+ var exp=w.StarlinkExperience, next=exp&&exp.nextEpisode&&exp.nextEpisode(state.current);
+ byId('next-episode-button').hidden=!next;
+ if(controlsDelay)w.clearTimeout(controlsDelay);
+ controlsDelay=w.setTimeout(function(){
+  if(state.playing&&!state.paused&&!byId('quality-panel').hidden)return;
+  if(state.playing&&!state.paused)d.body.classList.remove('controls-visible');
+ },7000);
+}
+function togglePause(){
+ if(!state.playing||!av)return;
+ try{
+  if(state.paused){
+   av.play();
+   state.paused=false;state.lastAdvanceAt=Date.now();state.stableAt=0;
+  }else{
+   av.pause();
+   state.paused=true;
+  }
+  showPlaybackControls();
+ }catch(e){videoStatus('Não foi possível pausar nesta transmissão.');showPlaybackControls();}
+}
+function skipSeconds(delta){
+ if(!state.playing||!av||!w.StarlinkDiscovery||!w.StarlinkDiscovery.isSeekable(state.current))return;
+ try{
+  var total=Number(av.getDuration())||0;
+  var target=w.StarlinkDiscovery.seekTarget(Math.max(0,state.lastTime),delta*1000,total);
+  if(target===null){videoStatus('Esta transmissão não permite avançar.');return;}
+  av.seekTo(target,function(){},function(){videoStatus('Não foi possível avançar nesta fonte.');});
+  state.lastAdvanceAt=Date.now();
+  showPlaybackControls();
+ }catch(e){videoStatus('Esta transmissão não permite avançar.');}
+}
+function playNextEpisode(){
+ var exp=w.StarlinkExperience;
+ var next=exp&&exp.nextEpisode&&exp.nextEpisode(state.current);
+ if(!next)return;
+ play(next,false,0);
+}
 function play(item,publicSample,retryCount){
  if(!state.logged)return;
- stop();state.current=item;state.events=0;state.lastTime=-1;state.playStart=Date.now();state.playing=true;state.bufferStarts=0;state.bufferingSince=0;state.bufferTotalMs=0;state.retryCount=retryCount||0;state.progressEvents=0;state.lastAdvanceAt=Date.now();state.stableAt=0;state.publicSample=!!publicSample;state.preparingSince=0;
+ stop();state.current=item;state.paused=false;state.events=0;state.lastTime=-1;state.playStart=Date.now();state.playing=true;state.bufferStarts=0;state.bufferingSince=0;state.bufferTotalMs=0;state.retryCount=retryCount||0;state.progressEvents=0;state.lastAdvanceAt=Date.now();state.stableAt=0;state.publicSample=!!publicSample;state.preparingSince=0;
  var exp=w.StarlinkExperience;
  if(exp&&exp.active()&&!publicSample)exp.onPlaybackStart(item);
  var playbackGeneration=state.generation;
  function isCurrentPlayback(){return state.playing&&state.logged&&state.generation===playbackGeneration;}
  page('player-screen');
  byId('retry-button').hidden=true;
- text('now-playing',publicSample?'Vídeo público de diagnóstico':'M81 · '+String(item.name||'Canal'));
+ text('now-playing',publicSample?'Vídeo público de diagnóstico':'M81 · '+String(item.name||item.title||'Conteúdo'));
  text('video-timer','Aguardando quadros e progresso temporal...');
  if(!av){videoStatus('ERRO: API Samsung AVPlay indisponível no emulador');return;}
  var url;
@@ -312,6 +365,11 @@ byId('login-form').onsubmit=login;
 byId('username-keyboard').onclick=function(){openRemoteKeyboard('username');};
 byId('password-keyboard').onclick=function(){openRemoteKeyboard('password');};
 byId('back-button').onclick=back;
+byId('close-player-button').onclick=back;
+byId('play-pause-button').onclick=togglePause;
+byId('skip-back-button').onclick=function(){skipSeconds(-10);};
+byId('skip-forward-button').onclick=function(){skipSeconds(10);};
+byId('next-episode-button').onclick=playNextEpisode;
 byId('retry-button').onclick=function(){if(state.logged&&state.current)play(state.current,state.publicSample,0);};
 byId('exit-button').onclick=logout;
 byId('culture-button').onclick=function(){if(state.culture)play(state.culture);};
@@ -332,7 +390,24 @@ d.addEventListener('keydown',function(ev){
   }
   return;
  }
- if(state.playing&&(key===10009||key===27)){ev.preventDefault();back();return;}
+ if(state.playing){
+  if(key===10009||key===27){
+   ev.preventDefault();
+   if(!byId('quality-panel').hidden){
+    byId('quality-panel').hidden=true;showPlaybackControls();return;
+   }
+   back();return;
+  }
+  if(key===19||key===415||key===10252){ev.preventDefault();togglePause();return;}
+  if(key===412||key===417){
+   ev.preventDefault();skipSeconds(key===412?-10:10);return;
+  }
+  if(!d.body.classList.contains('controls-visible')&&(key===13||key===37||key===39||key===38||key===40)){
+   ev.preventDefault();showPlaybackControls();byId('play-pause-button').focus();return;
+  }
+  if(key===13||key===37||key===38||key===39||key===40)showPlaybackControls();
+  return;
+ }
  if(state.logged&&!state.playing&&key===406){logout();return;}
  if(!state.logged||state.playing)return;
  var active=d.activeElement;
@@ -346,7 +421,7 @@ d.addEventListener('keydown',function(ev){
  }
 },true);
 w.setInterval(function(){
- if(!state.logged||!state.playing||!state.current||state.publicSample)return;
+ if(!state.logged||!state.playing||state.paused||!state.current||state.publicSample)return;
  if(state.retryCount>=3){
   if(core.isStalled(state,Date.now()) && byId('retry-button').hidden){
    byId('retry-button').hidden=false;
