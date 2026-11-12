@@ -27,10 +27,13 @@
         return items.length?items[0]:null;
     }
     // Avoid restarting live streams during normal AVPlay buffering, and cap recovery loops.
-    function shouldReconnect(state,now){
-        if(!state || state.retryCount>=3 || typeof state.lastAdvanceAt!=='number')return false;
+    function isStalled(state,now){
+        if(!state || typeof state.lastAdvanceAt!=='number')return false;
         if(state.bufferingSince>0)return now-state.bufferingSince>=45000;
         return now-state.lastAdvanceAt>=(state.progressEvents>0?15000:20000);
     }
-    return {isValidAccount:isValidAccount,streamUrl:streamUrl,pickTestChannel:pickTestChannel,shouldReconnect:shouldReconnect};
+    function shouldReconnect(state,now){
+        return !!(state && state.retryCount<3 && isStalled(state,now));
+    }
+    return {isValidAccount:isValidAccount,streamUrl:streamUrl,pickTestChannel:pickTestChannel,isStalled:isStalled,shouldReconnect:shouldReconnect};
 });
