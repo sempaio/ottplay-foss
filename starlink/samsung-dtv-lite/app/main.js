@@ -392,6 +392,16 @@ d.addEventListener('keydown',function(ev){
   if(key===10009||key===27){
    ev.preventDefault();ev.stopImmediatePropagation();
    if(w.StarlinkExperience&&w.StarlinkExperience.closeGuide)w.StarlinkExperience.closeGuide();
+   return;
+  }
+  if(key===38||key===40){
+   var guideControls=byId('epg-panel').querySelectorAll('button,[tabindex="0"]'),currentIndex=-1;
+   for(var q=0;q<guideControls.length;q++)if(guideControls[q]===d.activeElement){currentIndex=q;break;}
+   var nextIndex=Math.min(guideControls.length-1,Math.max(0,currentIndex+(key===38?-1:1)));
+   if(guideControls[nextIndex]){
+    ev.preventDefault();guideControls[nextIndex].focus();
+    try{guideControls[nextIndex].scrollIntoView({block:'nearest'});}catch(_e){}
+   }
   }
   return;
  }
