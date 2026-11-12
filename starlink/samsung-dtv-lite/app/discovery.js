@@ -134,8 +134,47 @@
   for(var k=0;k<keys.length;k++)if(cats[keys[k]].items.length>=2)result.push(cats[keys[k]]);
   return result;
  }
+ // The identity includes network, region and channel number.
+ // Strip ONLY trailing resolution markers, never seasons, regions or brand suffixes.
+ function qualityLabel(title){
+  var t=norm(title).trim();
+  var m=t.match(/(?:\s+|\s*\(\s*)(fhd|full\s*hd|1080p|hd|720p|sd|480p|360p)\s*\)?$/i);
+  if(!m)return 'Original';
+  var q=m[1];return q==='fhd'||q==='full hd'||q==='1080p'?'FHD':
+   q==='hd'||q==='720p'?'HD':'SD';
+ }
+ function stationName(title){
+  var t=val(title).trim();
+  return t.replace(/(?:\s+|\s*\(\s*)(?:FHD|FULL\s*HD|1080p|HD|720p|SD|480p|360p)\s*\)?$/i,'').trim()||t;
+ }
+ function groupLive(items){
+  var groups=[],byName={};
+  (items||[]).forEach(function(item){
+   if(!item||item.kind!=='live')return;
+   var quality=qualityLabel(item.title),name=stationName(item.title);
+   // A label without resolution is not proof that two URLs represent one channel.
+   var groupKey=quality==='Original'?'single:'+item.key:'station:'+norm(name);
+   var found=byName[groupKey];
+   if(!found){
+    found={key:item.key,kind:'live',id:item.id,title:name,category:item.category,
+     categoryId:item.categoryId,image:item.image,extension:item.extension,qualities:[],
+     is24h:item.is24h};
+    byName[groupKey]=found;groups.push(found);
+   }
+   found.qualities.push({quality:quality,item:item});
+  });
+  return groups;
+ }
+ function chooseQuality(group,quality){
+  if(!group||!group.qualities||!group.qualities.length)return group;
+  if(!quality||quality==='auto')return group.qualities[0].item;
+  for(var i=0;i<group.qualities.length;i++)
+   if(group.qualities[i].quality===quality)return group.qualities[i].item;
+  return group.qualities[0].item;
+ }
  return {normalize:normalize,normalizeEpisode:normalizeEpisode,episodesFromDetail:episodesFromDetail,
   nextEpisode:nextEpisode,playbackUrl:playbackUrl,rememberProgress:rememberProgress,
   resumePosition:resumePosition,continueItems:continueItems,recommend:recommend,
-  shelves:shelves,safeHistory:safeHistory};
+  shelves:shelves,safeHistory:safeHistory,qualityLabel:qualityLabel,stationName:stationName,
+  groupLive:groupLive,chooseQuality:chooseQuality};
 });
