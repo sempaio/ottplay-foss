@@ -62,6 +62,7 @@
   </div>
  </section>
  <p id="experience-status" role="status">Preparando sua biblioteca...</p>
+ <button id="guide-current-button" class="guide-catalog-button" type="button" hidden>Guia de programação</button>
  <nav id="live-subcategories" class="live-subcategories" aria-label="Grupos do catálogo" hidden></nav>
  <nav id="category-subgroups" class="live-subcategories catalog-subgroups" aria-label="Subcategorias do catálogo" hidden></nav>
  <div id="experience-rails"></div>
@@ -86,11 +87,25 @@
   <button id="play-pause-button" type="button">Pausar</button>
   <button id="skip-forward-button" type="button">+10 segundos</button>
   <button id="next-episode-button" type="button" hidden>Próximo episódio</button>
+  <button id="guide-player-button" type="button" hidden>Guia de programação</button>
   <button id="close-player-button" type="button">Voltar</button>
+ </div>
+</section>
+<section id="epg-panel" role="dialog" aria-modal="true" aria-label="Guia de programação" hidden>
+ <div class="guide-dialog">
+  <button id="epg-close" type="button">Voltar</button>
+  <h2 id="epg-heading">Guia de programação</h2>
+  <p id="epg-status" role="status">Carregando programação...</p>
+  <div id="epg-list"></div>
+  <div class="guide-actions">
+   <button id="epg-refresh" type="button">Atualizar guia</button>
+   <button id="epg-watch" type="button">Assistir ao canal</button>
+  </div>
  </div>
 </section>
 <script src="core.js"></script>
 <script src="discovery.js"></script>
+<script src="metadata.js"></script>
 <script src="experience.js"></script>
 <script src="main.js"></script>
 </body></html>
