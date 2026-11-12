@@ -36,5 +36,8 @@
     function shouldReconnect(state,now){
         return !!(state && state.retryCount<3 && isStalled(state,now));
     }
-    return {isValidAccount:isValidAccount,streamUrl:streamUrl,pickTestChannel:pickTestChannel,isStalled:isStalled,shouldReconnect:shouldReconnect};
+    function isTransientLoginFailure(error){
+        return /^(Falha de rede|Tempo esgotado|HTTP (408|429|5[0-9]{2}))$/.test(String(error||''));
+    }
+    return {isValidAccount:isValidAccount,streamUrl:streamUrl,pickTestChannel:pickTestChannel,isStalled:isStalled,shouldReconnect:shouldReconnect,isTransientLoginFailure:isTransientLoginFailure};
 });
