@@ -22,7 +22,7 @@ const list=[channel,film,series];
 const mix=model.recommend(list,['aventura'],{},10);
 assert.equal(mix.length,3);
 assert.equal(mix[0].kind==='movie'||mix[0].kind==='series',true);
-assert.equal(model.continueItems(list,{'movie:52':{positionMs:12000,updatedAt:2000},'live:730':{positionMs:900,updatedAt:3000}})[0].key,'movie:52');
+assert.equal(model.continueItems(list,{'movie:52':{positionMs:12000,durationMs:90000,updatedAt:2000},'live:730':{positionMs:900,durationMs:0,updatedAt:3000}})[0].key,'movie:52');
 const h=model.rememberProgress({},film,20000,90000,5000);
 assert.equal(h['movie:52'].positionMs,20000);
 assert.equal(model.resumePosition(h,film),20000);
