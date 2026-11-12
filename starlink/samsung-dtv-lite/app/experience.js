@@ -256,6 +256,11 @@ function loadKind(kind){
  }
  bridge.request(action,function(rows){
   if(!Array.isArray(rows)){finishError(kind);return;}
+  // The M81 includes the real category_name in each series summary. Avoid a
+  // separate slow SQL category query when the title already supplies its group.
+  var hasInlineSeriesCategories=kind==='series'&&rows.some(function(row){
+   return row&&typeof row.category_name==='string'&&row.category_name.length>0;
+  });
   var normalized=[],idx=0,batchSize=450;
   function processBatch(){
    var end=Math.min(rows.length,idx+batchSize);
@@ -267,7 +272,7 @@ function loadKind(kind){
    data[kind]=normalized;facetCache[kind]=m.categoryGroups(data[kind],kind);
    loaded[kind]=true;loading[kind]=false;
    status();render();
-   w.setTimeout(refreshCategories,500);
+   if(!hasInlineSeriesCategories)w.setTimeout(refreshCategories,500);
   }
   w.setTimeout(processBatch,0);
  },function(){finishError(kind);});
