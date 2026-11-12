@@ -259,7 +259,10 @@ d.addEventListener('keydown',function(ev){
 w.setInterval(function(){
  if(!state.logged||!state.playing||!state.current||state.publicSample)return;
  if(state.retryCount>=3){
-  if(byId('retry-button').hidden){byId('retry-button').hidden=false;videoStatus('Canal sem progresso apos 3 reconexoes. Escolha outro canal ou tente novamente.');}
+  if(core.isStalled(state,Date.now()) && byId('retry-button').hidden){
+   byId('retry-button').hidden=false;
+   videoStatus('Canal sem progresso apos 3 reconexoes. Escolha outro canal ou tente novamente.');
+  }
   return;
  }
  if(!core.shouldReconnect(state,Date.now()))return;
