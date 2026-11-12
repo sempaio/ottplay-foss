@@ -5,7 +5,7 @@ var m=w.StarlinkDiscovery,meta=w.StarlinkMetadata,bridge=null,ready=false;
 var data={live:[],movie:[],series:[]},raw={live:[],movie:[],series:[]},categoryNames={live:{},movie:{},series:{}};
 var loading={},loaded={},failed={},filter='all',search='',history={},interests=[],viewing={},liveSourceCategories=[],liveCategoryId='',liveLimit=60,selectedGroup='',selectedSub='',facetCache={};
 var current=null,activeGroup=null,episodes=[],details={},lastStore=0,lastViewingStore=0,requested={},episodeRecords={},heroKey='';
-var guideItem=null,lastFocusedLive=null,guideReturnFocus=null,guideToken=0,metaCache=meta&&meta.cache(65);
+var guideItem=null,lastFocusedLive=null,guideReturnFocus=null,guideToken=0,metaCache=meta&&meta.cache(65),movieDetailItem=null;
 var INTERESTS=['Evangélico','Anime','Ação','Aventura','Ficção científica','Documentários','Suspense','Terror','Romance','Clássicos','Lançamentos','Desenhos antigos','Coisas antigas','Brasileiro'];
 function el(id){return d.getElementById(id);}
 function node(tag,cls,text){
@@ -34,7 +34,7 @@ function init(b){
   bridge=b;data={live:[],movie:[],series:[]};raw={live:[],movie:[],series:[]};
   categoryNames={live:{},movie:{},series:{}};loaded={};loading={};failed={};
   activeGroup=null;current=null;currentSeries=null;episodeList=[];details={};
-  guideItem=null;lastFocusedLive=null;guideToken++;if(metaCache)metaCache.clear();el('epg-panel').hidden=true;
+  guideItem=null;lastFocusedLive=null;movieDetailItem=null;guideToken++;if(metaCache)metaCache.clear();el('epg-panel').hidden=true;
   history=m.safeHistory(read(storeKey('watch-history'),{}));
   interests=read(storeKey('interests'),[]);if(!Array.isArray(interests))interests=[];
   viewing=m.safeViewingStats(read(storeKey('viewing-stats'),{}));heroKey='';
@@ -108,9 +108,16 @@ function init(b){
    }
    if(key===40){
     var below=bar.id==='live-subcategories'&&!el('category-subgroups').hidden?
-     el('category-subgroups').querySelector('button.selected'):el('experience-rails').querySelector('.stream-card');
+     el('category-subgroups').querySelector('button.selected'):
+     !el('guide-current-button').hidden?el('guide-current-button'):el('experience-rails').querySelector('.stream-card');
     if(below){ev.preventDefault();below.focus();below.scrollIntoView({block:'nearest'});return;}
    }
+  }
+  if(focused===el('guide-current-button')&&(key===38||key===40)){
+   var neighbor=key===38?
+    (!el('category-subgroups').hidden?el('category-subgroups').querySelector('button.selected'):el('live-subcategories').querySelector('button.selected')):
+    el('experience-rails').querySelector('.stream-card');
+   if(neighbor){ev.preventDefault();neighbor.focus();neighbor.scrollIntoView({block:'nearest'});return;}
   }
   var rail=focused&&focused.closest?focused.closest('.stream-rail'):null;
   if(rail&&focused.classList.contains('stream-card')){
@@ -124,7 +131,7 @@ function init(b){
     if(neighbor&&neighbor.classList.contains('stream-rail')){
      var next=neighbor.querySelectorAll('.stream-card'),target=next[Math.min(idx,next.length-1)];
      if(target){ev.preventDefault();target.focus();target.scrollIntoView({block:'nearest',inline:'nearest'});}
-    }else if(key===38){var selected=!el('category-subgroups').hidden?el('category-subgroups').querySelector('button.selected'):!el('live-subcategories').hidden?el('live-subcategories').querySelector('button.selected'):el('experience-tabs').querySelector('button.selected');if(selected){ev.preventDefault();selected.focus();}}
+    }else if(key===38){var selected=!el('guide-current-button').hidden?el('guide-current-button'):!el('category-subgroups').hidden?el('category-subgroups').querySelector('button.selected'):!el('live-subcategories').hidden?el('live-subcategories').querySelector('button.selected'):el('experience-tabs').querySelector('button.selected');if(selected){ev.preventDefault();selected.focus();}}
     return;
    }
   }
@@ -374,6 +381,7 @@ function displayGuide(list){
  var now=0;
  list.forEach(function(program){
   var row=node('article','epg-program'+(program.nowPlaying?' is-current':''));
+  row.tabIndex=0;
   var title=node('h3','epg-program-title',program.title);
   var time=node('p','epg-program-time',
    guideTime(program.startMs)+' – '+guideTime(program.endMs)+(program.nowPlaying?' · NO AR':''));
@@ -426,7 +434,7 @@ function closeGuide(){
  }
 }
 function openMovie(item){
- currentSeries=null;
+ currentSeries=null;movieDetailItem=item;
  el('experience-detail').hidden=false;
  el('season-buttons').textContent='';
  var content=el('detail-content');content.textContent='';
@@ -442,7 +450,7 @@ function openMovie(item){
  actions.appendChild(watch);
  el('detail-close').focus();
  function show(payload){
-  if(el('experience-detail').hidden||currentSeries!==null)return;
+  if(el('experience-detail').hidden||movieDetailItem!==item)return;
   var result=meta?meta.synopsis(payload,item):{description:item.description,genre:item.category,year:''};
   description.textContent=result.description||'Sinopse não informada pela fonte deste filme.';
   info.textContent=[result.genre,result.year].filter(Boolean).join(' · ');
@@ -514,6 +522,7 @@ function qualityChoices(){
  });
 }
 function closeDetail(){
+ movieDetailItem=null;
  el('experience-detail').hidden=true;
  if(currentSeries){
   var button=el('experience-rails').querySelector('[data-key="'+currentSeries.key+'"]');
@@ -522,6 +531,7 @@ function closeDetail(){
 }
 var currentSeries=null,episodeList=[];
 function openSeries(series){
+ movieDetailItem=null;
  currentSeries=series;el('experience-detail').hidden=false;
  var content=el('detail-content');content.textContent='';
  content.appendChild(node('h2','detail-heading',series.title));
