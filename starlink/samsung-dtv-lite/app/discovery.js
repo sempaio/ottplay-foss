@@ -181,9 +181,69 @@
    if(group.qualities[i].quality===quality)return group.qualities[i].item;
   return group.qualities[0].item;
  }
+ // All viewing data stays local to the TV and is keyed by the logged-in account.
+ // This records only confirmed AVPlay progress, never clicks or image impressions.
+ function safeViewingStats(input){
+  if(!input||typeof input!=='object'||Array.isArray(input))return {};
+  var keys=Object.keys(input).filter(function(k){return /^(live|movie|series):\d+$/.test(k);});
+  keys.sort(function(a,b){
+   var x=input[a]||{},y=input[b]||{};
+   return (Number(y.lastAt)||0)-(Number(x.lastAt)||0);
+  });
+  var out={};
+  for(var i=0;i<Math.min(80,keys.length);i++){
+   var key=keys[i],v=input[key],ms=Number(v&&v.ms),at=Number(v&&v.lastAt);
+   if(!isFinite(ms)||ms<1000||!isFinite(at)||at<0)continue;
+   out[key]={ms:Math.min(604800000,Math.floor(ms)),lastAt:Math.floor(at)};
+  }
+  return out;
+ }
+ function recordViewing(previous,item,elapsedMs,now){
+  var out=safeViewingStats(previous),delta=Number(elapsedMs);
+  if(!item||!isFinite(delta)||delta<500)return out;
+  var target=item.kind==='episode'?val(item.seriesKey):val(item.key);
+  if(!/^(live|movie|series):\d+$/.test(target))return out;
+  delta=Math.min(60000,Math.floor(delta));
+  var old=out[target]||{ms:0,lastAt:0};
+  out[target]={ms:Math.min(604800000,old.ms+delta),lastAt:Math.max(0,Math.floor(Number(now)||0))};
+  return safeViewingStats(out);
+ }
+ function personalHero(items,viewing,interests){
+  if(!Array.isArray(items)||!items.length)return null;
+  var stats=safeViewingStats(viewing),winner=null,weight=0,timestamp=0;
+  for(var i=0;i<items.length;i++){
+   var item=items[i];if(!item)continue;
+   var variants=item.kind==='live'&&Array.isArray(item.qualities)?
+    item.qualities.map(function(x){return x.item;}):[item];
+   var total=0,latest=0;
+   for(var j=0;j<variants.length;j++){
+    var hit=stats[variants[j].key];
+    if(hit){total+=hit.ms;latest=Math.max(latest,hit.lastAt);}
+   }
+   if(total>=10000&&(total>weight||total===weight&&latest>timestamp)){
+    winner=item;weight=total;timestamp=latest;
+   }
+  }
+  if(winner)return {item:winner,reason:'watched',watchMs:weight};
+  var tastes=Array.isArray(interests)?interests.slice(0,16):[];
+  if(!tastes.length)return null;
+  var selected=null,best=0;
+  for(var k=0;k<items.length;k++){
+   var candidate=items[k];if(!candidate)continue;
+   var description=norm(candidate.title+' '+candidate.category+' '+(candidate.description||''));
+   var score=0;
+   for(var q=0;q<tastes.length;q++){
+    var word=norm(tastes[q]).trim();
+    if(word&&description.indexOf(word)>=0)score+=2;
+   }
+   if(score>best){selected=candidate;best=score;}
+  }
+  return selected?{item:selected,reason:'interests',watchMs:0}:null;
+ }
  return {normalize:normalize,normalizeEpisode:normalizeEpisode,episodesFromDetail:episodesFromDetail,
   nextEpisode:nextEpisode,playbackUrl:playbackUrl,rememberProgress:rememberProgress,
   resumePosition:resumePosition,continueItems:continueItems,recommend:recommend,
   shelves:shelves,safeHistory:safeHistory,qualityLabel:qualityLabel,stationName:stationName,
-  groupLive:groupLive,chooseQuality:chooseQuality,useAdaptiveStart:useAdaptiveStart};
+  groupLive:groupLive,chooseQuality:chooseQuality,useAdaptiveStart:useAdaptiveStart,
+  safeViewingStats:safeViewingStats,recordViewing:recordViewing,personalHero:personalHero};
 });
