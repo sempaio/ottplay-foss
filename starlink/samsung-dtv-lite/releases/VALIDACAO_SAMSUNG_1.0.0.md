@@ -23,6 +23,13 @@
 - O usuário confirmou explicitamente que **um filme reproduziu no emulador**, mesmo que capturas isoladas do teste não fossem suficientes para inferir movimento contínuo.
 - Testes locais de JS e empacotamento Tizen passaram antes da assinatura.
 
+## Observação funcional confirmada pelo usuário — 12/11/2026
+
+- **Filmes e séries abrem rapidamente; as capas aparecem.** Não alterar o carregamento de capas nem a estratégia de catálogo por essa queixa.
+- **Problema remanescente é sinopse ausente**, e não lentidão da capa. A versão estável pede os detalhes Xtream `get_vod_info` e `get_series_info`; quando a origem não informa descrição, a tela não pode inventá-la.
+- Enriquecimento opcional TMDB deve ocorrer no backend M81, com credencial válida e cache somente sob demanda. A PR backend #46 está separada, ainda não implantada. Não adicionar requisições TMDB diretas ao WGT.
+- O pacote WGT assinado e seu SHA-256 permanecem inalterados.
+
 ## Compatibilidade e pendências do painel M81
 
 O cliente 1.0.0 utiliza Xtream do M81: `/player_api.php`,
