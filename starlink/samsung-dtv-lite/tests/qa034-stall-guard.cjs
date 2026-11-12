@@ -21,4 +21,7 @@ assert.equal(core.shouldReconnect(state({retryCount:3}),120000),false,'never loo
 assert.equal(core.shouldReconnect(state({bufferingSince:1200,retryCount:3}),120000),false,'terminal failure stays stopped');
 assert.equal(core.isStalled(state({bufferingSince:1200,retryCount:3}),13000),false,'do not flag third attempt prematurely');
 assert.equal(core.isStalled(state({bufferingSince:1200,retryCount:3}),46200),true,'flag third attempt only after real prolonged stall');
+assert.equal(core.shouldReconnect(state({preparingSince:1000,progressEvents:0}),25000),false,'no premature retry while AVPlay is preparing');
+assert.equal(core.isStalled(state({preparingSince:1000,progressEvents:0}),30000),false,'preparation grace lasts 30s');
+assert.equal(core.shouldReconnect(state({preparingSince:1000,progressEvents:0}),31000),true,'reconnect when AVPlay preparation is hung');
 console.log('QA034 stall guard: PASS');
