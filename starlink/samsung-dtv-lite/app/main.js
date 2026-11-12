@@ -76,10 +76,12 @@ function page(name){
  d.documentElement.className=name==='player-screen'?'playing':'';
  if(name==='player-screen')byId('back-button').focus();
 }
-function request(action,success,fail){
+function request(action,success,fail,extra){
  var xhr=new XMLHttpRequest();
  var url=BASE+'/player_api.php?username='+encodeURIComponent(state.username)+'&password='+encodeURIComponent(state.password);
  if(action)url+='&action='+encodeURIComponent(action);
+ if(extra && action==='get_series_info' && /^\d+$/.test(String(extra.series_id)))
+  url+='&series_id='+encodeURIComponent(extra.series_id);
  xhr.open('GET',url,true);
  xhr.timeout=20000;
  xhr.onload=function(){
@@ -104,6 +106,18 @@ function login(evt,restored){
   if(attempt!==state.loginAttemptId)return;
   if(!core.isValidAccount(data)){if(restored)clearSavedLogin();text('login-status','Usuário, senha ou conta não autorizada.');return;}
   state.logged=true;
+  if(w.StarlinkExperience)w.StarlinkExperience.init({
+   accountKey:state.username,
+   request:request,
+   isPlaying:function(){return state.playing;},
+   play:function(item){
+    var normalized={
+     kind:item.kind,id:item.id,key:item.key,name:item.title||item.name||'Conteúdo',
+     stream_id:item.id,container_extension:item.extension||'ts'
+    };
+    play(normalized,false,0);
+   }
+  });
   state.loginRetryCount=0;
   if(byId('remember-login').checked)saveLogin();else clearSavedLogin();
   byId('password').value='';
@@ -137,8 +151,15 @@ function loadCatalog(){
    text('catalog-count',categories.length+' categorias · '+channels.length+' canais');
    text('catalog-status','Catálogo Xtream recebido. Reprodução nativa Samsung AVPlay.');
    renderCategories();showCategory('');
-   var firstCat=byId('categories').firstElementChild;if(firstCat)firstCat.focus();
-   if(preferred||state.culture){w.setTimeout(function(){play(preferred||state.culture);},700);}
+   var experience=w.StarlinkExperience;
+   if(experience&&experience.active()){
+    experience.onLiveLoaded(channels,categories);
+    var firstTab=byId('experience-tabs').querySelector('button');
+    if(firstTab)firstTab.focus();
+   }else{
+    var firstCat=byId('categories').firstElementChild;if(firstCat)firstCat.focus();
+    if(preferred||state.culture){w.setTimeout(function(){play(preferred||state.culture);},700);}
+   }
   },function(err){text('catalog-status','Falha ao carregar canais: '+err);});
  },function(err){text('catalog-status','Falha ao carregar categorias: '+err);});
 }
@@ -188,6 +209,8 @@ function videoStatus(msg){text('video-status',msg);console.log('STARLINK_AVPLAY 
 function play(item,publicSample,retryCount){
  if(!state.logged)return;
  stop();state.current=item;state.events=0;state.lastTime=-1;state.playStart=Date.now();state.playing=true;state.bufferStarts=0;state.bufferingSince=0;state.bufferTotalMs=0;state.retryCount=retryCount||0;state.progressEvents=0;state.lastAdvanceAt=Date.now();state.stableAt=0;state.publicSample=!!publicSample;state.preparingSince=0;
+ var exp=w.StarlinkExperience;
+ if(exp&&exp.active()&&!publicSample)exp.onPlaybackStart(item);
  var playbackGeneration=state.generation;
  function isCurrentPlayback(){return state.playing&&state.logged&&state.generation===playbackGeneration;}
  page('player-screen');
@@ -196,7 +219,12 @@ function play(item,publicSample,retryCount){
  text('video-timer','Aguardando quadros e progresso temporal...');
  if(!av){videoStatus('ERRO: API Samsung AVPlay indisponível no emulador');return;}
  var url;
- try{url=publicSample?'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4':core.streamUrl(BASE,state.username,state.password,item);}
+ try{
+  url=publicSample?'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4':
+   item.kind&&item.kind!=='live'&&w.StarlinkDiscovery?
+    w.StarlinkDiscovery.playbackUrl(BASE,state.username,state.password,item):
+    core.streamUrl(BASE,state.username,state.password,item);
+ }
  catch(e){videoStatus('Erro na URL do canal');return;}
  try{
   videoStatus('Abrindo vídeo com Samsung AVPlay...');
@@ -218,10 +246,17 @@ function play(item,publicSample,retryCount){
    onbufferingcomplete:function(){if(!isCurrentPlayback())return;if(state.bufferingSince){state.bufferTotalMs+=Date.now()-state.bufferingSince;state.bufferingSince=0;}state.lastAdvanceAt=Date.now();videoStatus('Buffer concluído');},
    oncurrentplaytime:function(ms){
     if(!isCurrentPlayback())return;
+    if(exp&&exp.active()&&(item.kind==='movie'||item.kind==='episode')){
+     try{exp.onPlaybackProgress(item,ms,Number(av.getDuration())||0);}catch(_e){}
+    }
     state.events++;
     if(ms>state.lastTime){if(state.lastTime>=0&&ms-state.lastTime>250){if(state.bufferingSince){state.bufferTotalMs+=Date.now()-state.bufferingSince;state.bufferingSince=0;}state.progressEvents++;state.lastAdvanceAt=Date.now();if(!state.stableAt)state.stableAt=Date.now();if(Date.now()-state.stableAt>=12000)state.retryCount=0;}state.lastTime=ms;text('video-timer','Tempo '+(ms/1000).toFixed(1)+' s · '+state.events+' eventos');videoStatus('Reprodução em andamento');}
    },
-   onstreamcompleted:function(){if(isCurrentPlayback())videoStatus('Vídeo concluído');},
+   onstreamcompleted:function(){
+    if(!isCurrentPlayback())return;
+    videoStatus('Vídeo concluído');
+    if(exp&&exp.active())exp.onPlaybackEnd(item);
+   },
    onerror:function(err){if(isCurrentPlayback())videoStatus('Erro AVPlay: '+String(err));},
    onerrormsg:function(err,msg){if(isCurrentPlayback())videoStatus('Erro AVPlay: '+String(err)+' '+String(msg));}
   });
@@ -231,12 +266,27 @@ function play(item,publicSample,retryCount){
    if(!isCurrentPlayback())return;
    state.preparingSince=0;
    state.lastAdvanceAt=Date.now();
-   try{av.play();if(isCurrentPlayback())videoStatus('Play acionado; verificando movimento...');}
+   try{
+    av.play();
+    if(exp&&exp.active()&&(item.kind==='movie'||item.kind==='episode')){
+     var resume=exp.resumePosition(item);
+     if(resume>=10000&&typeof av.seekTo==='function')
+      try{av.seekTo(resume,function(){},function(){});}catch(_e){}
+    }
+    if(isCurrentPlayback())videoStatus('Play acionado; verificando movimento...');
+   }
    catch(err){if(isCurrentPlayback())videoStatus('Falha ao iniciar: '+err.message);}
   },function(err){if(isCurrentPlayback()){state.preparingSince=0;videoStatus('Falha ao preparar vídeo: '+String(err));}});
  }catch(err){state.preparingSince=0;videoStatus('Falha ao abrir transmissão: '+err.message);}
 }
-function back(){stop();page('catalog-screen');text('catalog-status','Pronto para selecionar outro canal.');var selected=byId('categories').querySelector('.selected')||byId('categories').firstElementChild;if(selected)selected.focus();}
+function back(){
+ stop();page('catalog-screen');text('catalog-status','Pronto para selecionar outro conteúdo.');
+ var experience=w.StarlinkExperience;
+ var selected=experience&&experience.active()?
+  byId('experience-tabs').querySelector('button.selected'):
+  byId('categories').querySelector('.selected')||byId('categories').firstElementChild;
+ if(selected)selected.focus();
+}
 function logout(){state.loginAttemptId++;if(remoteKeyboardField)closeRemoteKeyboard();clearSavedLogin();stop();state.username='';state.password='';state.logged=false;state.channels=[];state.categories=[];state.culture=null;byId('username').value='';byId('password').value='';page('login-screen');byId('username').focus();text('login-status','Sessão encerrada.');}
 byId('login-form').onsubmit=login;
 byId('username-keyboard').onclick=function(){openRemoteKeyboard('username');};
