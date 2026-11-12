@@ -353,6 +353,110 @@ function renderInterests(){
   label.appendChild(input);label.appendChild(node('span','',name));root.appendChild(label);
  });
 }
+function renderGuideButton(){
+ var button=el('guide-current-button');
+ var visible=filter==='live'&&data.live.length>0&&search.trim().length<2;
+ button.hidden=!visible;
+ if(!visible)return;
+ var item=lastFocusedLive||data.live[0];
+ button.textContent='Guia de programação · '+item.title;
+}
+function guideTime(ms){
+ try{return new Date(ms).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});}
+ catch(_e){return '--:--';}
+}
+function displayGuide(list){
+ var target=el('epg-list');target.textContent='';
+ if(!list||!list.length){
+  el('epg-status').textContent='Sem programação disponível neste canal. O painel M81 ainda não publicou horários vinculados a ele.';
+  return;
+ }
+ var now=0;
+ list.forEach(function(program){
+  var row=node('article','epg-program'+(program.nowPlaying?' is-current':''));
+  var title=node('h3','epg-program-title',program.title);
+  var time=node('p','epg-program-time',
+   guideTime(program.startMs)+' – '+guideTime(program.endMs)+(program.nowPlaying?' · NO AR':''));
+  row.appendChild(time);row.appendChild(title);
+  if(program.description)row.appendChild(node('p','epg-program-desc',program.description));
+  target.appendChild(row);
+  if(program.nowPlaying)now++;
+ });
+ el('epg-status').textContent=now?'Programação atual e próximos horários.':'Próximos horários disponíveis.';
+}
+function loadGuide(item,refresh){
+ if(!meta||!bridge||!item)return;
+ var selected=item.qualities&&item.qualities.length?m.chooseQuality(item,'auto'):item;
+ var id=String(selected&&selected.id||selected&&selected.stream_id||'');
+ if(!/^\d+$/.test(id)){
+  el('epg-status').textContent='Este canal não possui identificador válido para consultar a programação.';
+  return;
+ }
+ var cacheKey='epg:'+id,cached=!refresh&&metaCache&&metaCache.get(cacheKey,5*60*1000);
+ if(cached){displayGuide(cached);return;}
+ var token=++guideToken;
+ el('epg-status').textContent='Consultando a programação deste canal no painel M81...';
+ el('epg-list').textContent='';
+ bridge.request('get_short_epg',function(reply){
+  if(token!==guideToken||el('epg-panel').hidden||guideItem!==item)return;
+  var items=meta.guide(reply);
+  if(metaCache)metaCache.put(cacheKey,items);
+  displayGuide(items);
+ },function(err){
+  if(token!==guideToken||el('epg-panel').hidden||guideItem!==item)return;
+  el('epg-status').textContent='Não foi possível consultar o guia: '+String(err||'falha de rede')+'. Tente Atualizar guia.';
+ },{stream_id:id,limit:18});
+}
+function openGuide(item){
+ if(!item||!bridge)return;
+ guideItem=item;guideReturnFocus=d.activeElement;
+ el('epg-panel').hidden=false;
+ el('epg-heading').textContent='Guia de programação · '+String(item.title||item.name||'Canal');
+ el('epg-watch').textContent=bridge.isPlaying()?'Voltar ao vídeo':'Assistir ao canal';
+ el('epg-close').focus();
+ loadGuide(item,false);
+}
+function closeGuide(){
+ ++guideToken;
+ guideItem=null;
+ el('epg-panel').hidden=true;
+ var focus=guideReturnFocus;guideReturnFocus=null;
+ if(focus&&typeof focus.focus==='function'){
+  try{focus.focus();}catch(e){}
+ }
+}
+function openMovie(item){
+ currentSeries=null;
+ el('experience-detail').hidden=false;
+ el('season-buttons').textContent='';
+ var content=el('detail-content');content.textContent='';
+ content.appendChild(node('h2','detail-heading',item.title));
+ var description=node('p','detail-copy','Carregando sinopse do filme...');
+ content.appendChild(description);
+ var info=node('p','detail-copy','');
+ content.appendChild(info);
+ var actions=el('episode-list');actions.textContent='';
+ var watch=node('button','episode-button','▶ Assistir ao filme');
+ watch.type='button';
+ watch.onclick=function(){el('experience-detail').hidden=true;activeGroup=null;bridge.play(item);};
+ actions.appendChild(watch);
+ el('detail-close').focus();
+ function show(payload){
+  if(el('experience-detail').hidden||currentSeries!==null)return;
+  var result=meta?meta.synopsis(payload,item):{description:item.description,genre:item.category,year:''};
+  description.textContent=result.description||'Sinopse não informada pela fonte deste filme.';
+  info.textContent=[result.genre,result.year].filter(Boolean).join(' · ');
+ }
+ var key='vod:'+item.id;
+ var cached=metaCache&&metaCache.get(key,12*60*60*1000);
+ if(cached){show(cached);return;}
+ bridge.request('get_vod_info',function(reply){
+  if(metaCache)metaCache.put(key,reply||{});
+  show(reply);
+ },function(){
+  show({});
+ },{vod_id:item.id});
+}
 function openItem(item){
  if(item.kind==='series'){openSeries(item);return;}
  if(item.kind==='movie'){openMovie(item);return;}
@@ -427,6 +531,8 @@ function openSeries(series){
   el('episode-list').appendChild(node('p','empty-rail','Temporadas ainda não disponíveis na lista.'));return;
  }
  function showDetail(detail){
+  var summary=meta&&meta.synopsis(detail,series);
+  if(summary&&summary.description)content.querySelector('.detail-copy').textContent=summary.description;
   episodeList=m.episodesFromDetail(detail,series);
   var seasons=[],seen={};
   episodeList.forEach(function(e){if(!seen[e.season]){seen[e.season]=true;seasons.push(e.season);}});
@@ -478,5 +584,6 @@ function ended(item){
 w.StarlinkExperience={init:init,onLiveLoaded:onLiveLoaded,onPlaybackStart:onPlaybackStart,
  onPlaybackProgress:progress,onPlaybackEnd:ended,onPlaybackActivity:trackPlayback,
  onReturnToCatalog:returnToCatalog,nextEpisode:nextEpisode,resumePosition:resume,
+ openGuide:openGuide,closeGuide:closeGuide,
  active:function(){return ready;},render:render,loading:function(){return loading;}};
 })(window,document);
