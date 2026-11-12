@@ -1,6 +1,10 @@
 'use strict';
 const assert = require('node:assert/strict');
-const core = require('../app/core.js');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const ctx = {module:{exports:{}}};
+vm.runInNewContext(fs.readFileSync(__dirname+'/../app/core.js','utf8'),ctx);
+const core = ctx.module.exports;
 
 assert.equal(typeof core.shouldReconnect,'function','watchdog policy must be exported');
 const state = (updates) => Object.assign({
