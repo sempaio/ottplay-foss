@@ -3,7 +3,7 @@
 // UI-only companion to the validated AVPlay player. No media proxy or transcoding.
 var m=w.StarlinkDiscovery,bridge=null,ready=false;
 var data={live:[],movie:[],series:[]},raw={live:[],movie:[],series:[]},categoryNames={live:{},movie:{},series:{}};
-var loading={},loaded={},failed={},filter='all',search='',history={},interests=[],viewing={},liveSourceCategories=[],liveCategoryId='',liveLimit=60;
+var loading={},loaded={},failed={},filter='all',search='',history={},interests=[],viewing={},liveSourceCategories=[],liveCategoryId='',liveLimit=60,selectedGroup='',selectedSub='',facetCache={};
 var current=null,activeGroup=null,episodes=[],details={},lastStore=0,lastViewingStore=0,requested={},episodeRecords={},heroKey='';
 var INTERESTS=['Evangélico','Anime','Ação','Aventura','Ficção científica','Documentários','Suspense','Terror','Romance','Clássicos','Lançamentos','Desenhos antigos','Coisas antigas','Brasileiro'];
 function el(id){return d.getElementById(id);}
@@ -38,7 +38,7 @@ function init(b){
   viewing=m.safeViewingStats(read(storeKey('viewing-stats'),{}));heroKey='';
   episodeRecords=read(storeKey('episodes'),{});
   if(!episodeRecords||typeof episodeRecords!=='object')episodeRecords={};
-  search='';el('stream-search').value='';filter='all';liveSourceCategories=[];liveCategoryId='';liveLimit=60;
+  search='';el('stream-search').value='';filter='all';liveSourceCategories=[];liveCategoryId='';liveLimit=60;selectedGroup='';selectedSub='';facetCache={};
   el('experience-detail').hidden=true;el('quality-panel').hidden=true;render();return;
  }
  ready=true;bridge=b;el('experience-shell').hidden=false;
@@ -51,7 +51,7 @@ function init(b){
  if(!Array.isArray(interests))interests=[];
  var tabs=el('experience-tabs').querySelectorAll('[data-shelf-filter]');
  for(var i=0;i<tabs.length;i++)tabs[i].onclick=function(){
-  filter=this.getAttribute('data-shelf-filter');liveLimit=60;
+  filter=this.getAttribute('data-shelf-filter');liveLimit=60;selectedGroup='';selectedSub='';
   for(var j=0;j<tabs.length;j++)tabs[j].classList.toggle('selected',tabs[j]===this);
   if(filter==='movie'||filter==='series')loadKind(filter);
   if(filter==='for-you'){loadKind('series');loadKind('movie');}
@@ -113,6 +113,7 @@ function onLiveLoaded(channels,categories){
  categoryNames.live=names;
  liveSourceCategories=categories||[];liveCategoryId='';liveLimit=60;
  normalizeRows('live',channels||[]);
+ facetCache.live=m.categoryGroups(data.live,'live');
  loaded.live=true;render();
  // Series summary is smaller; defer large movie load to keep initial navigation quick.
  w.setTimeout(function(){if(ready)loadKind('series');},700);
@@ -143,6 +144,7 @@ function loadKind(kind){
     var item=data[kind][i],name=names[item.categoryId];
     if(name)item.category=name;
    }
+   facetCache[kind]=m.categoryGroups(data[kind],kind);
    render();
   },function(){});
  }
@@ -156,7 +158,8 @@ function loadKind(kind){
     if(item)normalized.push(item);
    }
    if(idx<rows.length){w.setTimeout(processBatch,0);return;}
-   data[kind]=normalized;loaded[kind]=true;loading[kind]=false;
+   data[kind]=normalized;facetCache[kind]=m.categoryGroups(data[kind],kind);
+   loaded[kind]=true;loading[kind]=false;
    status();render();
    w.setTimeout(refreshCategories,500);
   }
@@ -186,54 +189,73 @@ function card(item){
  btn.onclick=function(){openItem(item);};
  return btn;
 }
-function renderLiveSubcategories(){
- var root=el('live-subcategories');
- if(filter!=='live'||search.trim().length>=2||!data.live.length){root.hidden=true;return;}
- root.hidden=false;root.textContent='';
- var choices=m.liveCategories(data.live,liveSourceCategories);
- choices.forEach(function(category){
-  var btn=node('button',category.id===liveCategoryId?'selected':'',category.title+' ('+category.count+')');
-  btn.type='button';btn.setAttribute('data-category-id',category.id);
-  btn.setAttribute('aria-pressed',category.id===liveCategoryId?'true':'false');
+function renderCategoryControls(){
+ var root=el('live-subcategories'),subroot=el('category-subgroups');
+ root.textContent='';subroot.textContent='';
+ if(!(filter==='live'||filter==='movie'||filter==='series')||search.trim().length>=2){
+  root.hidden=true;subroot.hidden=true;return;
+ }
+ var facets=facetCache[filter]||m.categoryGroups(data[filter],filter);
+ facetCache[filter]=facets;
+ root.hidden=false;
+ facets.groups.forEach(function(group){
+  var btn=node('button',selectedGroup===group.key?'selected':'',group.title+' ('+group.count+')');
+  btn.type='button';btn.setAttribute('data-facet-group',group.key);
+  btn.setAttribute('aria-pressed',selectedGroup===group.key?'true':'false');
   btn.onclick=function(){
-   liveCategoryId=category.id;liveLimit=60;render();
-   var active=el('live-subcategories').querySelector('button[data-category-id="'+category.id+'"]');
-   if(active)active.focus();
+   selectedGroup=group.key;selectedSub='';liveLimit=filter==='live'?60:36;
+   render();
+   var next=el('live-subcategories').querySelectorAll('button');
+   for(var j=0;j<next.length;j++)
+    if(next[j].getAttribute('data-facet-group')===group.key){next[j].focus();break;}
   };
   root.appendChild(btn);
+ });
+ if(!selectedGroup){subroot.hidden=true;return;}
+ var subs=facets.subgroups[selectedGroup]||[];
+ if(subs.length<3){subroot.hidden=true;return;}
+ subroot.hidden=false;
+ subs.forEach(function(sub){
+  var btn=node('button',selectedSub===sub.key?'selected':'',sub.title+' ('+sub.count+')');
+  btn.type='button';btn.setAttribute('data-facet-sub',sub.key);
+  btn.setAttribute('aria-pressed',selectedSub===sub.key?'true':'false');
+  btn.onclick=function(){
+   selectedSub=sub.key;liveLimit=filter==='live'?60:36;render();
+   var next=el('category-subgroups').querySelectorAll('button');
+   for(var j=0;j<next.length;j++)
+    if(next[j].getAttribute('data-facet-sub')===sub.key){next[j].focus();break;}
+  };
+  subroot.appendChild(btn);
  });
 }
 function render(){
  if(!ready)return;
- status();renderHero();renderLiveSubcategories();
+ status();renderHero();renderCategoryControls();
  var target=el('experience-rails');target.textContent='';
- var list=all(),groups=[],q=norm(search);
- if(q.length>=2)groups=[{key:'search',title:'Resultados da busca',items:list.filter(function(item){
+ var groups=[],q=norm(search);
+ if(q.length>=2)groups=[{key:'search',title:'Resultados da busca',items:all().filter(function(item){
   return norm(item.title+' '+item.category).indexOf(q)>=0;
  }).slice(0,80)}];
- else{
-  groups=m.shelves(list,{history:history,interests:interests});
-  if(filter==='live'){
-   var cats=m.liveCategories(data.live,liveSourceCategories);
-   var selected=null;
-   for(var c=0;c<cats.length;c++)if(cats[c].id===liveCategoryId){selected=cats[c];break;}
-   groups=[{key:'live',title:selected&&selected.id?selected.title:'Canais ao vivo',
-    items:m.filterLiveCategory(data.live,liveCategoryId)}];
-  }
+ else if(filter==='live'||filter==='movie'||filter==='series'){
+  var names={live:'Canais ao vivo',movie:'Filmes',series:'Séries'};
+  var selection=m.filterGrouped(data[filter],filter,selectedGroup,selectedSub);
+  groups=[{key:filter,title:selectedSub||selectedGroup||names[filter],items:selection}];
+ }else{
+  groups=m.shelves(all(),{history:history,interests:interests});
   if(filter==='for-you')groups=groups.filter(function(x){return x.key==='continue'||x.key==='for-you';});
-  else if(filter!=='all')groups=groups.filter(function(x){return x.key==='continue'||x.key===filter||x.key.indexOf(filter+':')===0;});
  }
  var count=0;
  groups.slice(0,22).forEach(function(group){
   if(!group.items||!group.items.length)return;
   var rail=node('section','stream-rail'),strip=node('div','stream-strip');
   rail.appendChild(node('h2','rail-title',group.title));
-  var maxItems=filter==='live'&&group.key==='live'?liveLimit:26;
+  var paged=filter==='live'||filter==='movie'||filter==='series';
+  var maxItems=paged&&group.key===filter?liveLimit:26;
   group.items.slice(0,maxItems).forEach(function(item){strip.appendChild(card(item));});
   rail.appendChild(strip);
-  if(filter==='live'&&group.key==='live'&&group.items.length>liveLimit){
-   var more=node('button','more-channels','Mostrar mais canais ('+(group.items.length-liveLimit)+' restantes)');
-   more.type='button';more.onclick=function(){liveLimit=Math.min(liveLimit+60,group.items.length);render();};
+  if(paged&&group.key===filter&&group.items.length>liveLimit){
+   var more=node('button','more-channels','Mostrar mais ('+(group.items.length-liveLimit)+' restantes)');
+   more.type='button';more.onclick=function(){liveLimit=Math.min(liveLimit+(filter==='live'?60:36),group.items.length);render();};
    rail.appendChild(more);
   }
   target.appendChild(rail);count++;
