@@ -97,3 +97,35 @@
  .hero-kicker{font-size:11px}
  .hero-actions button{font-size:15px}
 }
+
+/* QA037: live station logos are NOT portrait film posters; show every pixel. */
+.stream-card.is-live{flex-basis:10.2vw;width:10.2vw;min-width:132px;max-width:218px}
+.stream-card.is-live .stream-poster{
+ height:8vw;min-height:95px;max-height:167px;
+ background:#111c2a;padding:.65vw;display:flex;align-items:center;justify-content:center
+}
+.stream-card.is-live .stream-poster img{
+ position:relative;inset:auto;width:100%;height:100%;object-fit:contain;object-position:center;
+}
+.stream-card.is-live .poster-placeholder{font-size:1.12vw}
+.stream-card.is-live .card-name{font-size:1.02vw;min-height:2.2vw}
+.live-subcategories{display:flex;gap:.55vw;overflow-x:auto;white-space:nowrap;padding:.6vw .4vw 1.2vw}
+.live-subcategories[hidden]{display:none!important}
+.live-subcategories button{background:#15273b;color:#f0f4f8;border:2px solid #37536a;
+ border-radius:30px;padding:.52vw 1.05vw;margin:0;font-size:1.04vw;flex-shrink:0;min-height:42px}
+.live-subcategories button.selected{background:#14708c;border-color:#20c7eb}
+.player-info{position:absolute;left:2.5vw;top:2vw;max-width:42vw;pointer-events:none;
+ background:rgba(2,6,14,.64);transition:opacity .25s ease;border-radius:9px;padding:1vw 1.2vw}
+.player-info h2{font-size:1.55vw;margin:0 0 .3vw}.player-info p{font-size:.95vw;margin:.1vw 0}
+.player-info button,.player-info #quality-panel{pointer-events:auto}
+body.playing:not(.controls-visible) .player-info{opacity:0;visibility:hidden;pointer-events:none}
+body.playing.controls-visible .player-info{visibility:visible;opacity:1}
+#player-controls{position:fixed;left:12vw;right:12vw;bottom:3vh;display:flex;justify-content:center;
+ align-items:center;gap:1vw;z-index:11;padding:1vw;background:rgba(5,10,20,.80);border-radius:13px;
+ border:1px solid rgba(200,225,255,.2);transition:opacity .25s ease}
+#player-controls button{background:#17384e;color:#fff;font-size:1.15vw;min-width:7vw;padding:.8vw 1vw;margin:0}
+#player-controls button:focus{outline:4px solid #0bd1fc}
+#player-controls button[hidden],#player-controls[hidden]{display:none!important}
+body.playing:not(.controls-visible) #player-controls{opacity:0;visibility:hidden;pointer-events:none}
+body.playing.controls-visible #player-controls{opacity:1;visibility:visible}
+#player-controls #next-episode-button{background:#176b85}
