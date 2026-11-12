@@ -34,4 +34,7 @@ assert.equal(m.seekTarget(7000,-10000,100000),0);
 assert.equal(m.seekTarget(95000,10000,100000),99000,'avoid seeking past movie end');
 assert.equal(m.seekTarget(10000,10000,0),null,'unknown duration cannot seek');
 assert.equal(m.seekTarget(10000,10000,NaN),null);
+const sheet=fs.readFileSync(__dirname+'/../app/style.css','utf8');
+assert(/\.stream-card\.is-live\s+\.stream-poster\s+img\s*\{[^}]*object-fit\s*:\s*contain/s.test(sheet),'live channel logos must not zoom/crop');
+assert(/\.stream-card\.is-live\s+\.stream-poster\s*\{[^}]*height\s*:/s.test(sheet),'live channel tiles have dedicated compact dimensions');
 console.log('QA037 category and safe seek: PASS');
