@@ -3,7 +3,7 @@
 // UI-only companion to the validated AVPlay player. No media proxy or transcoding.
 var m=w.StarlinkDiscovery,bridge=null,ready=false;
 var data={live:[],movie:[],series:[]},raw={live:[],movie:[],series:[]},categoryNames={live:{},movie:{},series:{}};
-var loading={},loaded={},failed={},filter='all',search='',history={},interests=[],viewing={};
+var loading={},loaded={},failed={},filter='all',search='',history={},interests=[],viewing={},liveSourceCategories=[],liveCategoryId='',liveLimit=60;
 var current=null,activeGroup=null,episodes=[],details={},lastStore=0,lastViewingStore=0,requested={},episodeRecords={},heroKey='';
 var INTERESTS=['Evangélico','Anime','Ação','Aventura','Ficção científica','Documentários','Suspense','Terror','Romance','Clássicos','Lançamentos','Desenhos antigos','Coisas antigas','Brasileiro'];
 function el(id){return d.getElementById(id);}
@@ -38,7 +38,7 @@ function init(b){
   viewing=m.safeViewingStats(read(storeKey('viewing-stats'),{}));heroKey='';
   episodeRecords=read(storeKey('episodes'),{});
   if(!episodeRecords||typeof episodeRecords!=='object')episodeRecords={};
-  search='';el('stream-search').value='';filter='all';
+  search='';el('stream-search').value='';filter='all';liveSourceCategories=[];liveCategoryId='';liveLimit=60;
   el('experience-detail').hidden=true;el('quality-panel').hidden=true;render();return;
  }
  ready=true;bridge=b;el('experience-shell').hidden=false;
@@ -51,7 +51,7 @@ function init(b){
  if(!Array.isArray(interests))interests=[];
  var tabs=el('experience-tabs').querySelectorAll('[data-shelf-filter]');
  for(var i=0;i<tabs.length;i++)tabs[i].onclick=function(){
-  filter=this.getAttribute('data-shelf-filter');
+  filter=this.getAttribute('data-shelf-filter');liveLimit=60;
   for(var j=0;j<tabs.length;j++)tabs[j].classList.toggle('selected',tabs[j]===this);
   if(filter==='movie'||filter==='series')loadKind(filter);
   if(filter==='for-you'){loadKind('series');loadKind('movie');}
@@ -111,6 +111,7 @@ function onLiveLoaded(channels,categories){
  var names={};
  (categories||[]).forEach(function(c){names[String(c.category_id)]=String(c.category_name||'Canais ao vivo');});
  categoryNames.live=names;
+ liveSourceCategories=categories||[];liveCategoryId='';liveLimit=60;
  normalizeRows('live',channels||[]);
  loaded.live=true;render();
  // Series summary is smaller; defer large movie load to keep initial navigation quick.
@@ -185,9 +186,26 @@ function card(item){
  btn.onclick=function(){openItem(item);};
  return btn;
 }
+function renderLiveSubcategories(){
+ var root=el('live-subcategories');
+ if(filter!=='live'||search.trim().length>=2||!data.live.length){root.hidden=true;return;}
+ root.hidden=false;root.textContent='';
+ var choices=m.liveCategories(data.live,liveSourceCategories);
+ choices.forEach(function(category){
+  var btn=node('button',category.id===liveCategoryId?'selected':'',category.title+' ('+category.count+')');
+  btn.type='button';btn.setAttribute('data-category-id',category.id);
+  btn.setAttribute('aria-pressed',category.id===liveCategoryId?'true':'false');
+  btn.onclick=function(){
+   liveCategoryId=category.id;liveLimit=60;render();
+   var active=el('live-subcategories').querySelector('button[data-category-id="'+category.id+'"]');
+   if(active)active.focus();
+  };
+  root.appendChild(btn);
+ });
+}
 function render(){
  if(!ready)return;
- status();renderHero();
+ status();renderHero();renderLiveSubcategories();
  var target=el('experience-rails');target.textContent='';
  var list=all(),groups=[],q=norm(search);
  if(q.length>=2)groups=[{key:'search',title:'Resultados da busca',items:list.filter(function(item){
@@ -195,6 +213,13 @@ function render(){
  }).slice(0,80)}];
  else{
   groups=m.shelves(list,{history:history,interests:interests});
+  if(filter==='live'){
+   var cats=m.liveCategories(data.live,liveSourceCategories);
+   var selected=null;
+   for(var c=0;c<cats.length;c++)if(cats[c].id===liveCategoryId){selected=cats[c];break;}
+   groups=[{key:'live',title:selected&&selected.id?selected.title:'Canais ao vivo',
+    items:m.filterLiveCategory(data.live,liveCategoryId)}];
+  }
   if(filter==='for-you')groups=groups.filter(function(x){return x.key==='continue'||x.key==='for-you';});
   else if(filter!=='all')groups=groups.filter(function(x){return x.key==='continue'||x.key===filter||x.key.indexOf(filter+':')===0;});
  }
@@ -203,8 +228,15 @@ function render(){
   if(!group.items||!group.items.length)return;
   var rail=node('section','stream-rail'),strip=node('div','stream-strip');
   rail.appendChild(node('h2','rail-title',group.title));
-  group.items.slice(0,26).forEach(function(item){strip.appendChild(card(item));});
-  rail.appendChild(strip);target.appendChild(rail);count++;
+  var maxItems=filter==='live'&&group.key==='live'?liveLimit:26;
+  group.items.slice(0,maxItems).forEach(function(item){strip.appendChild(card(item));});
+  rail.appendChild(strip);
+  if(filter==='live'&&group.key==='live'&&group.items.length>liveLimit){
+   var more=node('button','more-channels','Mostrar mais canais ('+(group.items.length-liveLimit)+' restantes)');
+   more.type='button';more.onclick=function(){liveLimit=Math.min(liveLimit+60,group.items.length);render();};
+   rail.appendChild(more);
+  }
+  target.appendChild(rail);count++;
  });
  if(!count)target.appendChild(node('p','empty-rail','Carregando conteúdos ou nenhum resultado encontrado.'));
 }
@@ -372,8 +404,15 @@ function progress(item,ms,duration){
  store(storeKey('watch-history'),history);
 }
 function resume(item){return m.resumePosition(history,item);}
+function nextEpisode(item){
+ if(!item||item.kind!=='episode')return null;
+ return m.nextEpisode(episodeList,item);
+}
 function ended(item){
  if(!item)return;
+ if(item.kind==='episode'||item.kind==='movie'){
+  delete history[item.key];store(storeKey('watch-history'),history);
+ }
  if(item.kind==='episode'){
   var next=m.nextEpisode(episodeList,item);
   if(next){bridge.play(next);return;}
@@ -381,6 +420,6 @@ function ended(item){
 }
 w.StarlinkExperience={init:init,onLiveLoaded:onLiveLoaded,onPlaybackStart:onPlaybackStart,
  onPlaybackProgress:progress,onPlaybackEnd:ended,onPlaybackActivity:trackPlayback,
- onReturnToCatalog:returnToCatalog,resumePosition:resume,
+ onReturnToCatalog:returnToCatalog,nextEpisode:nextEpisode,resumePosition:resume,
  active:function(){return ready;},render:render,loading:function(){return loading;}};
 })(window,document);
