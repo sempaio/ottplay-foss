@@ -553,6 +553,7 @@ function openSeries(series){
     var btn=node('button','episode-button','E'+e.episode+' · '+e.title);
     btn.onclick=function(){activeGroup=null;el('experience-detail').hidden=true;bridge.play(e);};
     target.appendChild(btn);
+    if(e.description)target.appendChild(node('p','episode-description',e.description));
    });
   }
   seasons.forEach(function(s){
