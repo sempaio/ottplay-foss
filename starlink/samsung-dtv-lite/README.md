@@ -1,3 +1,16 @@
+# STARLINK DTV Samsung — QA 0.3.6 PERSONALIZED (EXPERIMENTAL)
+
+**Checkpoint 11/11/2026:** pacote assinado, instalado e aberto no emulador Samsung. Catálogo M81 carregado, com 1.644 canais e 5.152 séries na captura de diagnóstico. O fundo personalizado já destacou **1 Contra Todos** usando o histórico de `Continuar assistindo`.
+
+- Componentes: trilhos de canais/filmes/séries, capas, busca, filtros, detalhes e temporadas, navegação por controle remoto, preferências e recomendações locais, qualidade SD/HD/FHD agrupada por emissora/região e reprodução nativa AVPlay herdada da QA 0.3.5.
+- Nova personalização: destaque automático conforme tempo *real* de reprodução reportado pelo AVPlay, somando variações do mesmo canal e atribuindo episódios à série. Fallback para progresso antigo ou gêneros escolhidos; nenhuma identificação facial, câmera ou envio de histórico a terceiros.
+- Testes automatizados no computador: `qa036-personal-hero.cjs`, `qa036-discovery.cjs`, `qa036-quality.cjs`, `test-core.cjs` e `qa034-stall-guard.cjs` passaram. Análise de sintaxe JS também passou.
+- Evidência de reprodução na QA 0.3.6 antes da última camada de personalização: canal ge Fast (1080p) com 38,5 segundos e 22 eventos AVPlay. **Ainda precisa revalidar vídeo prolongado após a última mudança visual e vários filmes/episódios e opções de qualidade**.
+- Arquivo experimental assinado: `releases/STARLINKDTV-QA-0.3.6-PERSONALIZED.wgt` (1.948.297 bytes; SHA-256 `36DC705A536C420C92A6BD0D14EB3B541D329CEF09E4E40DC39FB566CBA5109F`).
+- **Não mesclar na branch principal ou substituir a QA 0.3.5 validada sem testes de regressão.** A correção de latência do painel M81 continua em PR separada e não está implantada.
+
+## Histórico de releases
+
 # STARLINK DTV Samsung — QA 0.3.5 (M81 / Tizen)
 
 **Checkpoint de 11/11/2026:** vídeo real de TV Brasil (720p), originado do M81, reproduzido em movimento no emulador Samsung. Aplicativo de teste; ainda não homologado em TV física ou loja.
