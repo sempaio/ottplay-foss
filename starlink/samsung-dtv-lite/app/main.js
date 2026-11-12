@@ -113,7 +113,9 @@ function login(evt,restored){
    play:function(item){
     var normalized={
      kind:item.kind,id:item.id,key:item.key,name:item.title||item.name||'Conteúdo',
-     stream_id:item.id,container_extension:item.extension||'ts'
+     stream_id:item.id,container_extension:item.extension||'ts',extension:item.extension||'ts',
+     seriesKey:item.seriesKey||'',seriesTitle:item.seriesTitle||'',
+     image:item.image||'',category:item.category||''
     };
     play(normalized,false,0);
    }
