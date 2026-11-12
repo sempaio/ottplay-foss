@@ -2,7 +2,7 @@
 'use strict';
 var BASE='https://panel.taila5c5c2.ts.net';
 var core=w.StarlinkLiteCore;
-var state={username:'',password:'',categories:[],channels:[],visible:[],culture:null,current:null,events:0,lastTime:-1,playStart:0,playing:false,logged:false,generation:0,bufferStarts:0,bufferingSince:0,bufferTotalMs:0,remembered:false,lastAdvanceAt:0,stableAt:0,progressEvents:0,retryCount:0,publicSample:false,preparingSince:0};
+var state={username:'',password:'',categories:[],channels:[],visible:[],culture:null,current:null,events:0,lastTime:-1,playStart:0,playing:false,logged:false,generation:0,bufferStarts:0,bufferingSince:0,bufferTotalMs:0,remembered:false,lastAdvanceAt:0,stableAt:0,progressEvents:0,retryCount:0,publicSample:false,preparingSince:0,loginAttemptId:0,loginRetryCount:0};
 var av=w.webapis&&w.webapis.avplay;
 var LOGIN_KEY='starlink-dtv-qa032-remembered-account';
 function clearSavedLogin(){try{w.localStorage.removeItem(LOGIN_KEY);}catch(_e){}}
@@ -94,19 +94,33 @@ function request(action,success,fail){
 }
 function login(evt,restored){
  if(evt)evt.preventDefault();
+ if(!restored)state.loginRetryCount=0;
+ var attempt=++state.loginAttemptId;
  state.username=byId('username').value.trim();
  state.password=byId('password').value;
  if(!state.username||!state.password){text('login-status','Preencha usuário e senha.');return;}
  text('login-status','Verificando sua conta Xtream...');
  request('',function(data){
+  if(attempt!==state.loginAttemptId)return;
   if(!core.isValidAccount(data)){if(restored)clearSavedLogin();text('login-status','Usuário, senha ou conta não autorizada.');return;}
   state.logged=true;
+  state.loginRetryCount=0;
   if(byId('remember-login').checked)saveLogin();else clearSavedLogin();
   byId('password').value='';
   page('catalog-screen');
   text('catalog-status','Carregando categorias e canais do M81...');
   loadCatalog();
- },function(err){text('login-status','Não foi possível entrar: '+err);});
+ },function(err){
+  if(attempt!==state.loginAttemptId)return;
+  if(restored && core.isTransientLoginFailure(err) && state.loginRetryCount<3){
+   state.loginRetryCount++;
+   var tries=state.loginRetryCount;
+   text('login-status','Rede instavel ('+err+'). Reconectando automaticamente: '+tries+'/3.');
+   w.setTimeout(function(){if(!state.logged&&attempt===state.loginAttemptId)login(null,true);},tries*4000);
+   return;
+  }
+  text('login-status','Não foi possível entrar: '+err);
+ });
 }
 function loadCatalog(){
  request('get_live_categories',function(categories){
@@ -223,7 +237,7 @@ function play(item,publicSample,retryCount){
  }catch(err){state.preparingSince=0;videoStatus('Falha ao abrir transmissão: '+err.message);}
 }
 function back(){stop();page('catalog-screen');text('catalog-status','Pronto para selecionar outro canal.');var selected=byId('categories').querySelector('.selected')||byId('categories').firstElementChild;if(selected)selected.focus();}
-function logout(){if(remoteKeyboardField)closeRemoteKeyboard();clearSavedLogin();stop();state.username='';state.password='';state.logged=false;state.channels=[];state.categories=[];state.culture=null;byId('username').value='';byId('password').value='';page('login-screen');byId('username').focus();text('login-status','Sessão encerrada.');}
+function logout(){state.loginAttemptId++;if(remoteKeyboardField)closeRemoteKeyboard();clearSavedLogin();stop();state.username='';state.password='';state.logged=false;state.channels=[];state.categories=[];state.culture=null;byId('username').value='';byId('password').value='';page('login-screen');byId('username').focus();text('login-status','Sessão encerrada.');}
 byId('login-form').onsubmit=login;
 byId('username-keyboard').onclick=function(){openRemoteKeyboard('username');};
 byId('password-keyboard').onclick=function(){openRemoteKeyboard('password');};
