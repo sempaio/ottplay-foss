@@ -257,6 +257,44 @@
   }
   return selected?{item:selected,reason:'interests',watchMs:0}:null;
  }
+ function liveCategories(items,categories){
+  var list=[{id:'',title:'Todos',count:(items||[]).length}],seen={};
+  var counts={};
+  (items||[]).forEach(function(item){
+   if(item&&item.kind==='live'){
+    var id=val(item.categoryId);
+    counts[id]=(counts[id]||0)+1;
+   }
+  });
+  (categories||[]).forEach(function(c){
+   if(!c)return;
+   var id=val(c.category_id),title=val(c.category_name).trim();
+   if(!id||!title||seen[id]||!counts[id])return;
+   seen[id]=true;
+   list.push({id:id,title:title,count:counts[id]});
+  });
+  list.sort(function(a,b){
+   if(!a.id)return -1;
+   if(!b.id)return 1;
+   var rank=function(x){
+    return /^(abertos?|canais?\s+abertos?|tv\s+aberta)$/i.test(norm(x.title))?0:1;
+   };
+   return rank(a)-rank(b)||norm(a.title).localeCompare(norm(b.title));
+  });
+  return list;
+ }
+ function filterLiveCategory(items,id){
+  var key=val(id);
+  return (items||[]).filter(function(x){
+   return x&&x.kind==='live'&&(!key||val(x.categoryId)===key);
+  });
+ }
+ function isSeekable(item){return !!item&&(item.kind==='movie'||item.kind==='episode');}
+ function seekTarget(current,delta,duration){
+  var now=Number(current),change=Number(delta),total=Number(duration);
+  if(!isFinite(now)||!isFinite(change)||!isFinite(total)||total<=0)return null;
+  return Math.max(0,Math.min(Math.floor(total-1000),Math.floor(now+change)));
+ }
  function pageClasses(page,hasExperience){
   return page==='player-screen'?'playing':
    page==='catalog-screen'&&hasExperience?'experience-ready':'';
@@ -267,5 +305,6 @@
   shelves:shelves,safeHistory:safeHistory,qualityLabel:qualityLabel,stationName:stationName,
   groupLive:groupLive,chooseQuality:chooseQuality,useAdaptiveStart:useAdaptiveStart,
   safeViewingStats:safeViewingStats,recordViewing:recordViewing,personalHero:personalHero,
-  pageClasses:pageClasses};
+  pageClasses:pageClasses,liveCategories:liveCategories,
+  filterLiveCategory:filterLiveCategory,isSeekable:isSeekable,seekTarget:seekTarget};
 });
