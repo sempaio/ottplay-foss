@@ -92,6 +92,12 @@ function request(action,success,fail,extra){
  if(action)url+='&action='+encodeURIComponent(action);
  if(extra && action==='get_series_info' && /^\d+$/.test(String(extra.series_id)))
   url+='&series_id='+encodeURIComponent(extra.series_id);
+ if(extra && action==='get_vod_info' && /^\d+$/.test(String(extra.vod_id)))
+  url+='&vod_id='+encodeURIComponent(extra.vod_id);
+ if(extra && action==='get_short_epg' && /^\d+$/.test(String(extra.stream_id))){
+  url+='&stream_id='+encodeURIComponent(extra.stream_id);
+  url+='&limit='+Math.max(1,Math.min(24,Number(extra.limit)||12));
+ }
  xhr.open('GET',url,true);
  xhr.timeout=20000;
  xhr.onload=function(){
@@ -229,6 +235,8 @@ function showPlaybackControls(){
  byId('play-pause-button').textContent=state.paused?'Reproduzir':'Pausar';
  var exp=w.StarlinkExperience, next=exp&&exp.nextEpisode&&exp.nextEpisode(state.current);
  byId('next-episode-button').hidden=!next;
+ byId('guide-player-button').hidden=state.publicSample||!state.current||
+  (state.current.kind&&state.current.kind!=='live');
  if(controlsDelay)w.clearTimeout(controlsDelay);
  controlsDelay=w.setTimeout(function(){
   if(state.playing&&!state.paused&&!byId('quality-panel').hidden)return;
@@ -370,12 +378,23 @@ byId('play-pause-button').onclick=togglePause;
 byId('skip-back-button').onclick=function(){skipSeconds(-10);};
 byId('skip-forward-button').onclick=function(){skipSeconds(10);};
 byId('next-episode-button').onclick=playNextEpisode;
+byId('guide-player-button').onclick=function(){
+ var exp=w.StarlinkExperience;
+ if(exp&&typeof exp.openGuide==='function'&&state.current)exp.openGuide(state.current);
+};
 byId('retry-button').onclick=function(){if(state.logged&&state.current)play(state.current,state.publicSample,0);};
 byId('exit-button').onclick=logout;
 byId('culture-button').onclick=function(){if(state.culture)play(state.culture);};
 byId('public-demo-button').onclick=function(){play({name:'Teste HLS público',stream_id:0},true);};
 d.addEventListener('keydown',function(ev){
  var key=ev.keyCode;
+ if(!byId('epg-panel').hidden){
+  if(key===10009||key===27){
+   ev.preventDefault();ev.stopImmediatePropagation();
+   if(w.StarlinkExperience&&w.StarlinkExperience.closeGuide)w.StarlinkExperience.closeGuide();
+  }
+  return;
+ }
  if(!byId('login-keyboard').hidden){
   if(key===10009||key===27){ev.preventDefault();closeRemoteKeyboard();return;}
   var keys=byId('keyboard-keys').querySelectorAll('button');
