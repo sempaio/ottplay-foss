@@ -64,3 +64,36 @@
 #quality-panel p{font-size:15px;max-width:400px;color:#d7e0eb}
 #quality-options{display:flex;flex-direction:column;gap:8px}
 .quality-choice{display:block;text-align:left;background:#1d4660;color:#fff;margin:0;padding:12px 18px;font-size:19px}
+
+/* Taste-driven banner, only on catalog; AVPlay remains unchanged. */
+.personalized-hero{
+ position:relative;min-height:23vw;max-height:460px;border-radius:12px;
+ display:flex;align-items:center;isolation:isolate;overflow:hidden;
+ background:linear-gradient(125deg,#153b51 0%,#0a2038 44%,#101c33 74%,#080a0e 100%);
+ border:1px solid #273b4a;margin:0 0 1.5vw;
+}
+.hero-background{
+ position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+ object-position:center 35%;opacity:.48;filter:blur(2px) brightness(.74);
+}
+.hero-background[hidden]{display:none!important}
+.hero-overlay{
+ position:absolute;inset:0;pointer-events:none;
+ background:linear-gradient(90deg,rgba(5,10,18,.97) 0%,rgba(5,10,18,.82) 38%,rgba(5,10,18,.20) 100%);
+}
+.hero-content{position:relative;z-index:1;width:70%;padding:2.1vw 2.5vw}
+.hero-kicker{font-size:1.08vw;letter-spacing:.16em;font-weight:800;color:#36dcff;margin:.25vw 0 1.4vw}
+#hero-title{font-size:3.15vw;line-height:1.1;max-width:35vw;margin:.25vw 0 1.1vw;text-shadow:0 2px 12px #000}
+#hero-description{font-size:1.3vw;line-height:1.4;color:#e2eaf1;max-width:35vw;margin:0 0 1.7vw;text-shadow:0 2px 9px #000}
+.hero-actions{display:flex;align-items:center;gap:.9vw}
+.hero-actions button{margin:0;font-size:1.25vw;min-height:48px;padding:.8vw 1.5vw}
+#hero-play{background:#f0f5fc;color:#10151d}
+#hero-details{background:rgba(92,115,135,.78);color:white}
+.hero-actions button[hidden]{display:none!important}
+@media(max-width:900px){
+ .personalized-hero{min-height:240px}
+ #hero-title{font-size:28px;max-width:58vw}
+ #hero-description{font-size:15px;max-width:57vw}
+ .hero-kicker{font-size:11px}
+ .hero-actions button{font-size:15px}
+}
