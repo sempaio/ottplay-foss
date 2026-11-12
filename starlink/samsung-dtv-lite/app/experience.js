@@ -211,7 +211,7 @@ function render(){
 var heroItem=null;
 function renderHero(){
  if(!ready)return;
- var winner=m.personalHero(data.live.concat(data.movie,data.series),viewing,interests);
+ var winner=m.personalHero(data.live.concat(data.movie,data.series),viewing,interests,history,episodeRecords);
  var item=winner&&winner.item||null;
  heroItem=item;
  var title=el('hero-title'),kicker=el('hero-kicker'),desc=el('hero-description');
@@ -224,11 +224,13 @@ function renderHero(){
   if(heroKey!==''){heroKey='';art.removeAttribute('src');art.hidden=true;}
   return;
  }
- kicker.textContent=winner.reason==='watched'?'BASEADO NO QUE VOCÊ MAIS ASSISTE':'ESCOLHIDO PELOS SEUS GOSTOS';
+ kicker.textContent=winner.reason==='watched'?'BASEADO NO QUE VOCÊ MAIS ASSISTE':
+  winner.reason==='resume'?'CONTINUE DE ONDE PAROU':'ESCOLHIDO PELOS SEUS GOSTOS';
  title.textContent=item.title;
  desc.textContent=(item.kind==='live'?'Canal ao vivo':item.kind==='series'?'Sua série':'Seu filme')+
   ' · '+(item.category||'Conteúdo STARLINK')+
-  (winner.reason==='watched'?' · Sua preferência ganhou destaque.':' · Uma sugestão para você.');
+  (winner.reason==='watched'?' · Sua preferência ganhou destaque.':
+   winner.reason==='resume'?' · Você estava assistindo.':' · Uma sugestão para você.');
  playButton.hidden=false;
  playButton.textContent=item.kind==='series'?'Ver episódios':item.kind==='live'?'Assistir ao vivo':'Assistir filme';
  detailButton.hidden=true;
