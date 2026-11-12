@@ -176,6 +176,7 @@ function play(item,publicSample,retryCount){
  var playbackGeneration=state.generation;
  function isCurrentPlayback(){return state.playing&&state.logged&&state.generation===playbackGeneration;}
  page('player-screen');
+ byId('retry-button').hidden=true;
  text('now-playing',publicSample?'Vídeo público de diagnóstico':'M81 · '+String(item.name||'Canal'));
  text('video-timer','Aguardando quadros e progresso temporal...');
  if(!av){videoStatus('ERRO: API Samsung AVPlay indisponível no emulador');return;}
@@ -197,13 +198,13 @@ function play(item,publicSample,retryCount){
   }
   av.setDisplayRect(0,0,1920,1080);
   av.setListener({
-   onbufferingstart:function(){if(!isCurrentPlayback())return;state.bufferStarts++;state.bufferingSince=Date.now();videoStatus('Carregando vídeo... (buffer '+state.bufferStarts+')');},
+   onbufferingstart:function(){if(!isCurrentPlayback())return;state.bufferStarts++;if(!state.bufferingSince)state.bufferingSince=Date.now();videoStatus('Carregando vídeo... (buffer '+state.bufferStarts+')');},
    onbufferingprogress:function(percent){if(isCurrentPlayback()&&percent%20===0)videoStatus('Buffer '+percent+'%');},
-   onbufferingcomplete:function(){if(!isCurrentPlayback())return;if(state.bufferingSince){state.bufferTotalMs+=Date.now()-state.bufferingSince;state.bufferingSince=0;}videoStatus('Buffer concluído');},
+   onbufferingcomplete:function(){if(!isCurrentPlayback())return;if(state.bufferingSince){state.bufferTotalMs+=Date.now()-state.bufferingSince;state.bufferingSince=0;}state.lastAdvanceAt=Date.now();videoStatus('Buffer concluído');},
    oncurrentplaytime:function(ms){
     if(!isCurrentPlayback())return;
     state.events++;
-    if(ms>state.lastTime){if(state.lastTime>=0&&ms-state.lastTime>250){state.progressEvents++;state.lastAdvanceAt=Date.now();if(!state.stableAt)state.stableAt=Date.now();if(Date.now()-state.stableAt>=12000)state.retryCount=0;}state.lastTime=ms;text('video-timer','Tempo '+(ms/1000).toFixed(1)+' s · '+state.events+' eventos');videoStatus('Reprodução em andamento');}
+    if(ms>state.lastTime){if(state.lastTime>=0&&ms-state.lastTime>250){if(state.bufferingSince){state.bufferTotalMs+=Date.now()-state.bufferingSince;state.bufferingSince=0;}state.progressEvents++;state.lastAdvanceAt=Date.now();if(!state.stableAt)state.stableAt=Date.now();if(Date.now()-state.stableAt>=12000)state.retryCount=0;}state.lastTime=ms;text('video-timer','Tempo '+(ms/1000).toFixed(1)+' s · '+state.events+' eventos');videoStatus('Reprodução em andamento');}
    },
    onstreamcompleted:function(){if(isCurrentPlayback())videoStatus('Vídeo concluído');},
    onerror:function(err){if(isCurrentPlayback())videoStatus('Erro AVPlay: '+String(err));},
@@ -222,6 +223,7 @@ byId('login-form').onsubmit=login;
 byId('username-keyboard').onclick=function(){openRemoteKeyboard('username');};
 byId('password-keyboard').onclick=function(){openRemoteKeyboard('password');};
 byId('back-button').onclick=back;
+byId('retry-button').onclick=function(){if(state.logged&&state.current)play(state.current,state.publicSample,0);};
 byId('exit-button').onclick=logout;
 byId('culture-button').onclick=function(){if(state.culture)play(state.culture);};
 byId('public-demo-button').onclick=function(){play({name:'Teste HLS público',stream_id:0},true);};
@@ -256,8 +258,11 @@ d.addEventListener('keydown',function(ev){
 },true);
 w.setInterval(function(){
  if(!state.logged||!state.playing||!state.current||state.publicSample)return;
- var limit=state.retryCount>=3?60000:(state.progressEvents>0?15000:20000);
- if(Date.now()-state.lastAdvanceAt<limit)return;
+ if(state.retryCount>=3){
+  if(byId('retry-button').hidden){byId('retry-button').hidden=false;videoStatus('Canal sem progresso apos 3 reconexoes. Escolha outro canal ou tente novamente.');}
+  return;
+ }
+ if(!core.shouldReconnect(state,Date.now()))return;
  var item=state.current,attempt=Math.min(3,state.retryCount+1);
  videoStatus('Reconectando canal apos interrupcao (tentativa '+attempt+')');
  play(item,false,attempt);
@@ -274,5 +279,5 @@ if(remembered){
 if(!remembered)w.setTimeout(function(){
  if(!state.logged && !byId('login-screen').hidden)byId('username').focus();
 },0);
-text('login-status','Digite sua conta M81. Servidor pré-configurado. Nenhuma senha é armazenada.');
+if(!remembered)text('login-status','Digite sua conta M81. Servidor pré-configurado. Ative login automático somente em TV pessoal.');
 })(window,document);
