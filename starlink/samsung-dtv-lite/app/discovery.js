@@ -289,6 +289,130 @@
    return x&&x.kind==='live'&&(!key||val(x.categoryId)===key);
   });
  }
+ // Navigation taxonomy. Only presentation is normalized: original source category and
+ // identifiers remain intact for playback and for users who need source details.
+ function categoryTaxonomy(kind,source){
+  var src=norm(source).replace(/\s+/g,' ').trim();
+  src=src.replace(/^(?:canais|filmes|series)\s*[:|]\s*/,'').trim();
+  src=src.replace(/[✨⭐⚽]/g,'').replace(/\s+/g,' ').trim();
+  var label=val(source).replace(/^\s*(?:CANAIS|Canais|FILMES|Filmes|SÉRIES|Séries)\s*[:|]\s*/i,'')
+   .replace(/[✨⭐⚽]/g,'').trim()||'Sem categoria';
+  if(!src||src==='sem categoria')return {group:'Outros',sub:'Sem categoria'};
+  if(kind==='live'){
+   if(/24\s*h|24h/.test(src)){
+    if(/serie/.test(src))return {group:'Séries 24h',sub:'Séries'};
+    if(/anime/.test(src))return {group:'Anime',sub:'Animes 24h'};
+    if(/desenh|infantil/.test(src))return {group:'Infantil',sub:'Desenhos 24h'};
+    return {group:'Variedades',sub:label};
+   }
+   if(/(^abert|canais abertos|^tv brasileira|^globo|^globos|^sbt|^record|^band$|^rede\s*tv|^redetv)/.test(src)){
+    var sub=/globos?/.test(src)?label.replace(/globos?/i,'Globo'):/(^sbt)/.test(src)?'SBT':
+     /^record/.test(src)?'Record':/^band/.test(src)?'Band':/rede\s*tv/.test(src)?'RedeTV':
+     'Abertos';
+    return {group:'Abertos',sub:sub};
+   }
+   if(/esport|nba|ppv|futebol|libertadores|campeonat|premiere|sportv|prime video/.test(src))
+    return {group:'Esportes',sub:/nba/.test(src)?'NBA':/ppv/.test(src)?'PPV':
+     /libertadores/.test(src)?'Libertadores':/campeonat/.test(src)?'Campeonatos':'Esportes'};
+   if(/notici|news/.test(src))return {group:'Notícias',sub:'Notícias'};
+   if(/anime/.test(src))return {group:'Anime',sub:'Anime'};
+   if(/south park|adult swim/.test(src))return {group:'Animação adulta',sub:label};
+   if(/infantil|desenho|nickelodeon/.test(src))return {group:'Infantil',sub:label};
+   if(/document|discovery|natureza|investig|curiosidad|misterio/.test(src))
+    return {group:'Documentários',sub:label};
+   if(/religio|evangel|igreja/.test(src))return {group:'Religiosos',sub:'Religiosos'};
+   if(/telecine|hbo|cine sky|^filmes$|^cinema$/.test(src))
+    return {group:'Canais de filmes',sub:label};
+   if(/novela|globoplay/.test(src))return {group:'Novelas',sub:label};
+   if(/musica|^mtv/.test(src))return {group:'Música',sub:label};
+   if(/serie|jornada nas estrelas|paramount|disney|claro video/.test(src))
+    return {group:'Séries 24h',sub:label};
+   if(/variedad|reality|comedia|estilo de vida|retro|boas festas|pegadinha/.test(src))
+    return {group:'Variedades',sub:label};
+   return {group:'Outros',sub:label};
+  }
+  if(kind==='movie'){
+   if(/4k|uhd/.test(src))return {group:'Qualidade',sub:'4K'};
+   if(/legendad/.test(src))return {group:'Idioma',sub:'Legendados'};
+   if(/oscar|lancament|reels|shorts/.test(src))
+    return {group:'Coleções',sub:/lancament/.test(src)?'Lançamentos':label};
+   if(/nacion|brasileir/.test(src))return {group:'Brasileiros',sub:'Nacionais'};
+   if(/ficc/.test(src))return {group:'Ficção científica',sub:'Ficção científica'};
+   if(/infantil|animac|familia/.test(src))return {group:'Infantil e família',sub:label};
+   if(/document/.test(src))return {group:'Documentários',sub:'Documentários'};
+   if(/stand up|comedia/.test(src))return {group:'Comédia',sub:'Comédia'};
+   var genres=[
+    ['Ação',/^(acao|ac[aã]o)$/],['Aventura',/aventura/],['Terror',/terror/],
+    ['Suspense',/suspense/],['Romance',/romance/],['Drama',/drama/],
+    ['Crime',/crime/],['Fantasia',/fantasia/],['Faroeste',/faroeste/],
+    ['Guerra',/guerra/],['Religiosos',/religio/],['Natal',/natal/],
+    ['Esportes',/esporte/],['Shows',/show/],['Cinema',/cinema/]
+   ];
+   for(var g=0;g<genres.length;g++)if(genres[g][1].test(src))
+    return {group:genres[g][0],sub:genres[g][0]};
+   return {group:'Outros',sub:label};
+  }
+  if(kind==='series'){
+   if(/^(globoplay|lionsgate|max|netflix|claro video|crunchyroll|directv|paramount|plutotv|sbt|star plus|discovery plus|disney plus)/.test(src))
+    return {group:'Por origem',sub:label};
+   if(/portugues|indian/.test(src))return {group:'Por país',sub:label};
+   if(/desenh|anime/.test(src))return {group:'Desenhos e anime',sub:label};
+   if(/futebol|esport/.test(src))return {group:'Esportes',sub:label};
+   if(/musica/.test(src))return {group:'Música',sub:label};
+   if(/^(filmes|canais abertos|series|variedades)$/.test(src))
+    return {group:'Séries',sub:'Todas as séries'};
+   return {group:'Séries',sub:label};
+  }
+  return {group:'Outros',sub:label};
+ }
+ function categoryGroups(items,kind){
+  var totals={},subs={},allCount=0;
+  (items||[]).forEach(function(item){
+   if(!item||item.kind!==kind)return;
+   var t=categoryTaxonomy(kind,item.category);
+   item.navGroup=t.group;item.navSub=t.sub;
+   totals[t.group]=(totals[t.group]||0)+1;
+   if(!subs[t.group])subs[t.group]={};
+   subs[t.group][t.sub]=(subs[t.group][t.sub]||0)+1;
+   allCount++;
+  });
+  var order=kind==='live'?
+   ['Abertos','Esportes','Notícias','Infantil','Anime','Animação adulta','Documentários','Religiosos',
+    'Canais de filmes','Novelas','Séries 24h','Música','Variedades','Outros']:
+   kind==='movie'?
+   ['Lançamentos','Ação','Aventura','Terror','Suspense','Romance','Comédia','Drama','Ficção científica',
+    'Infantil e família','Brasileiros','Documentários','Crime','Fantasia','Faroeste','Guerra',
+    'Religiosos','Natal','Cinema','Qualidade','Idioma','Coleções','Shows','Esportes','Outros']:
+   ['Séries','Por origem','Desenhos e anime','Por país','Esportes','Música','Outros'];
+  var names=Object.keys(totals);
+  names.sort(function(a,b){
+   var ai=order.indexOf(a),bi=order.indexOf(b);
+   if(ai<0)ai=999;if(bi<0)bi=999;
+   return ai-bi||a.localeCompare(b);
+  });
+  var groups=[{key:'',title:'Todos',count:allCount}];
+  var subgroups={};
+  names.forEach(function(name){
+   groups.push({key:name,title:name,count:totals[name]});
+   var names2=Object.keys(subs[name]).sort(function(a,b){
+    return a.localeCompare(b);
+   });
+   subgroups[name]=[{key:'',title:'Todos',count:totals[name]}];
+   names2.forEach(function(sub){
+    if(names2.length>1)subgroups[name].push({key:sub,title:sub,count:subs[name][sub]});
+   });
+  });
+  return {groups:groups,subgroups:subgroups};
+ }
+ function filterGrouped(items,kind,group,sub){
+  return (items||[]).filter(function(item){
+   if(!item||item.kind!==kind)return false;
+   if(!group)return true;
+   var g=item.navGroup,sc=item.navSub;
+   if(!g){var t=categoryTaxonomy(kind,item.category);g=t.group;sc=t.sub;}
+   return g===group&&(!sub||sub===sc);
+  });
+ }
  function isSeekable(item){return !!item&&(item.kind==='movie'||item.kind==='episode');}
  function seekTarget(current,delta,duration){
   var now=Number(current),change=Number(delta),total=Number(duration);
@@ -306,5 +430,6 @@
   groupLive:groupLive,chooseQuality:chooseQuality,useAdaptiveStart:useAdaptiveStart,
   safeViewingStats:safeViewingStats,recordViewing:recordViewing,personalHero:personalHero,
   pageClasses:pageClasses,liveCategories:liveCategories,
-  filterLiveCategory:filterLiveCategory,isSeekable:isSeekable,seekTarget:seekTarget};
+  filterLiveCategory:filterLiveCategory,isSeekable:isSeekable,seekTarget:seekTarget,
+  categoryTaxonomy:categoryTaxonomy,categoryGroups:categoryGroups,filterGrouped:filterGrouped};
 });
