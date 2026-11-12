@@ -231,6 +231,13 @@ function play(item,publicSample,retryCount){
  try{
   videoStatus('Abrindo vídeo com Samsung AVPlay...');
   av.open(url);
+  // On HLS multivariant streams AVPlay chooses the next bitrate itself.
+  // Start at the smallest available bitrate to minimize initial rebuffering.
+  if(w.StarlinkDiscovery && w.StarlinkDiscovery.useAdaptiveStart(item) &&
+     typeof av.setStreamingProperty==='function'){
+   try{av.setStreamingProperty('ADAPTIVE_INFO','STARTBITRATE=LOWEST');}
+   catch(e){console.warn('STARLINK_AVPLAY native ABR preference not supported');}
+  }
   // Samsung permite ajustar o buffer somente no estado IDLE, após open e antes de prepareAsync.
   if(typeof av.setBufferingParam==='function'){
    try{
