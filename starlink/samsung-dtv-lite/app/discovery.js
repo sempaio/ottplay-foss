@@ -321,7 +321,7 @@
    if(/document|discovery|natureza|investig|curiosidad|misterio/.test(src))
     return {group:'Documentários',sub:label};
    if(/religio|evangel|igreja/.test(src))return {group:'Religiosos',sub:'Religiosos'};
-   if(/telecine|hbo|cine sky|^filmes$|^cinema$/.test(src))
+   if(/telecine|hbo|cine sky|^filmes$|^cinema$|filmes e series/.test(src))
     return {group:'Canais de filmes',sub:label};
    if(/novela|globoplay/.test(src))return {group:'Novelas',sub:label};
    if(/musica|^mtv/.test(src))return {group:'Música',sub:label};
@@ -334,8 +334,8 @@
   if(kind==='movie'){
    if(/4k|uhd/.test(src))return {group:'Qualidade',sub:'4K'};
    if(/legendad/.test(src))return {group:'Idioma',sub:'Legendados'};
-   if(/oscar|lancament|reels|shorts/.test(src))
-    return {group:'Coleções',sub:/lancament/.test(src)?'Lançamentos':label};
+   if(/lancament/.test(src))return {group:'Lançamentos',sub:'Lançamentos'};
+   if(/oscar|reels|shorts/.test(src))return {group:'Coleções',sub:label};
    if(/nacion|brasileir/.test(src))return {group:'Brasileiros',sub:'Nacionais'};
    if(/ficc/.test(src))return {group:'Ficção científica',sub:'Ficção científica'};
    if(/infantil|animac|familia/.test(src))return {group:'Infantil e família',sub:label};
