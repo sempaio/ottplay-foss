@@ -126,7 +126,11 @@
   var cats={},keys=[];
   for(var j=0;j<source.length;j++){
    var item=source[j],name=item.category;
-   if(!name||norm(name)==='sem categoria'||norm(name)==='variedade')continue;
+   var tag=norm(name);
+   if(!name||tag==='sem categoria'||tag==='variedade')continue;
+   // Keep categorization errors from presenting 'Filmes' inside a series page.
+   if((item.kind==='series'&&tag==='filmes')||
+      (item.kind==='movie'&&(tag==='series'||tag==='serie')))continue;
    var id=item.kind+':'+norm(name);
    if(!cats[id]){cats[id]={key:id,title:name,items:[]};keys.push(id);}
    if(cats[id].items.length<20)cats[id].items.push(item);
