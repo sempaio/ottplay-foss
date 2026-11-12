@@ -362,10 +362,15 @@ function renderInterests(){
 }
 function renderGuideButton(){
  var button=el('guide-current-button');
- var visible=filter==='live'&&data.live.length>0&&search.trim().length<2;
+ var choices=filter==='live'?m.filterGrouped(data.live,'live',selectedGroup,selectedSub):[];
+ var item=null;
+ for(var i=0;i<choices.length;i++)
+  if(lastFocusedLive&&choices[i].key===lastFocusedLive.key){item=choices[i];break;}
+ if(!item)item=choices[0]||null;
+ var visible=filter==='live'&&!!item&&search.trim().length<2;
  button.hidden=!visible;
  if(!visible)return;
- var item=lastFocusedLive||data.live[0];
+ lastFocusedLive=item;
  button.textContent='Guia de programação · '+item.title;
 }
 function guideTime(ms){
