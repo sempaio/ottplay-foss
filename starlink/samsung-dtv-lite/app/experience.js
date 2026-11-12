@@ -1,10 +1,11 @@
 (function(w,d){
 'use strict';
 // UI-only companion to the validated AVPlay player. No media proxy or transcoding.
-var m=w.StarlinkDiscovery,bridge=null,ready=false;
+var m=w.StarlinkDiscovery,meta=w.StarlinkMetadata,bridge=null,ready=false;
 var data={live:[],movie:[],series:[]},raw={live:[],movie:[],series:[]},categoryNames={live:{},movie:{},series:{}};
 var loading={},loaded={},failed={},filter='all',search='',history={},interests=[],viewing={},liveSourceCategories=[],liveCategoryId='',liveLimit=60,selectedGroup='',selectedSub='',facetCache={};
 var current=null,activeGroup=null,episodes=[],details={},lastStore=0,lastViewingStore=0,requested={},episodeRecords={},heroKey='';
+var guideItem=null,lastFocusedLive=null,guideReturnFocus=null,guideToken=0,metaCache=meta&&meta.cache(65);
 var INTERESTS=['Evangélico','Anime','Ação','Aventura','Ficção científica','Documentários','Suspense','Terror','Romance','Clássicos','Lançamentos','Desenhos antigos','Coisas antigas','Brasileiro'];
 function el(id){return d.getElementById(id);}
 function node(tag,cls,text){
@@ -33,6 +34,7 @@ function init(b){
   bridge=b;data={live:[],movie:[],series:[]};raw={live:[],movie:[],series:[]};
   categoryNames={live:{},movie:{},series:{}};loaded={};loading={};failed={};
   activeGroup=null;current=null;currentSeries=null;episodeList=[];details={};
+  guideItem=null;lastFocusedLive=null;guideToken++;if(metaCache)metaCache.clear();el('epg-panel').hidden=true;
   history=m.safeHistory(read(storeKey('watch-history'),{}));
   interests=read(storeKey('interests'),[]);if(!Array.isArray(interests))interests=[];
   viewing=m.safeViewingStats(read(storeKey('viewing-stats'),{}));heroKey='';
@@ -67,6 +69,16 @@ function init(b){
   el('interests-panel').hidden=true;render();el('interest-open').focus();
  };
  el('detail-close').onclick=closeDetail;
+ el('epg-close').onclick=closeGuide;
+ el('epg-refresh').onclick=function(){if(guideItem)loadGuide(guideItem,true);};
+ el('epg-watch').onclick=function(){
+  var item=guideItem;closeGuide();
+  if(item&&!bridge.isPlaying())openItem(item);
+ };
+ el('guide-current-button').onclick=function(){
+  if(lastFocusedLive)openGuide(lastFocusedLive);
+  else if(data.live.length)openGuide(data.live[0]);
+ };
  el('hero-play').onclick=function(){if(heroItem)openItem(heroItem);};
  el('hero-details').onclick=function(){if(heroItem&&heroItem.kind==='series')openSeries(heroItem);};
  el('quality-button').onclick=function(){
@@ -206,6 +218,9 @@ function card(item){
   bar.appendChild(fill);btn.appendChild(bar);
  }
  btn.onclick=function(){openItem(item);};
+ if(item.kind==='live')btn.onfocus=function(){
+  lastFocusedLive=item;renderGuideButton();
+ };
  return btn;
 }
 function renderCategoryControls(){
@@ -249,7 +264,7 @@ function renderCategoryControls(){
 }
 function render(){
  if(!ready)return;
- status();renderHero();renderCategoryControls();
+ status();renderHero();renderCategoryControls();renderGuideButton();
  var target=el('experience-rails');target.textContent='';
  var groups=[],q=norm(search);
  if(q.length>=2)groups=[{key:'search',title:'Resultados da busca',items:all().filter(function(item){
@@ -340,6 +355,7 @@ function renderInterests(){
 }
 function openItem(item){
  if(item.kind==='series'){openSeries(item);return;}
+ if(item.kind==='movie'){openMovie(item);return;}
  if(item.kind==='live'){
   activeGroup=item;
   playQuality(m.chooseQuality(item,'auto'),'auto');
