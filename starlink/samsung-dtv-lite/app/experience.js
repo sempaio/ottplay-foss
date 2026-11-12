@@ -126,18 +126,20 @@ function loadKind(kind){
  loading[kind]=true;delete failed[kind];status();
  var action=kind==='movie'?'get_vod_streams':'get_series';
  var categoriesAction=kind==='movie'?'get_vod_categories':'get_series_categories';
- // Categories never block stream listing (series categories may take >20s).
- bridge.request(categoriesAction,function(rows){
-  if(!Array.isArray(rows))return;
-  var names={};
-  rows.forEach(function(x){names[String(x.category_id)]=String(x.category_name||kind);});
-  categoryNames[kind]=names;
-  for(var i=0;i<data[kind].length;i++){
-   var item=data[kind][i],name=names[item.categoryId];
-   if(name)item.category=name;
-  }
-  render();
- },function(){});
+ // Load the core catalog first; heavy category SQL must not compete with it.
+ function refreshCategories(){
+  bridge.request(categoriesAction,function(rows){
+   if(!Array.isArray(rows))return;
+   var names={};
+   rows.forEach(function(x){names[String(x.category_id)]=String(x.category_name||kind);});
+   categoryNames[kind]=names;
+   for(var i=0;i<data[kind].length;i++){
+    var item=data[kind][i],name=names[item.categoryId];
+    if(name)item.category=name;
+   }
+   render();
+  },function(){});
+ }
  bridge.request(action,function(rows){
   if(!Array.isArray(rows)){finishError(kind);return;}
   var normalized=[],idx=0,batchSize=450;
@@ -150,6 +152,7 @@ function loadKind(kind){
    if(idx<rows.length){w.setTimeout(processBatch,0);return;}
    data[kind]=normalized;loaded[kind]=true;loading[kind]=false;
    status();render();
+   w.setTimeout(refreshCategories,500);
   }
   w.setTimeout(processBatch,0);
  },function(){finishError(kind);});
