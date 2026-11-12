@@ -35,4 +35,8 @@ assert(groups.some(x=>x.title==='HBO 2'));
 assert.equal(groups.filter(x=>x.title.includes('Chaves')).length,2);
 const test=m.normalize('live',{name:'Cultura',stream_id:101},'Aberto');
 assert.equal(m.groupLive([test])[0].qualities.length,1);
+assert.equal(m.useAdaptiveStart({extension:'m3u8'}),true);
+assert.equal(m.useAdaptiveStart({container_extension:'m3u8'}),true);
+assert.equal(m.useAdaptiveStart({extension:'mp4'}),false);
+assert.equal(m.useAdaptiveStart({extension:'ts'}),false);
 console.log('QA036 quality grouping: PASS');
