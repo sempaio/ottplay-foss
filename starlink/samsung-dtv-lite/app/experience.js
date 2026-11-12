@@ -77,9 +77,9 @@ function init(b){
   var key=ev.keyCode,focused=d.activeElement;
   if(key===10009||key===27){
    if(!el('quality-panel').hidden){
-    ev.preventDefault();el('quality-panel').hidden=true;el('quality-button').focus();return;
+    ev.preventDefault();ev.stopPropagation();el('quality-panel').hidden=true;el('quality-button').focus();return;
    }
-   if(!el('experience-detail').hidden){ev.preventDefault();closeDetail();return;}
+   if(!el('experience-detail').hidden){ev.preventDefault();ev.stopPropagation();closeDetail();return;}
   }
   if(!active()||!el('experience-detail').hidden||!el('quality-panel').hidden)return;
   var rail=focused&&focused.closest?focused.closest('.stream-rail'):null;
@@ -165,7 +165,7 @@ function loadKind(kind){
 }
 function finishError(kind){loading[kind]=false;failed[kind]=true;status();render();}
 function card(item){
- var btn=node('button','stream-card');btn.type='button';
+ var btn=node('button','stream-card'+(item.kind==='live'?' is-live':''));btn.type='button';
  btn.setAttribute('data-key',item.key);
  btn.setAttribute('aria-label',item.title+' · '+(item.category||''));
  var cover=node('div','stream-poster');
