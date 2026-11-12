@@ -94,12 +94,14 @@ function request(action,success,fail,extra){
   url+='&series_id='+encodeURIComponent(extra.series_id);
  if(extra && action==='get_vod_info' && /^\d+$/.test(String(extra.vod_id)))
   url+='&vod_id='+encodeURIComponent(extra.vod_id);
+ if(extra && action==='get_vod_streams' && /^[a-zA-Z0-9_-]{1,64}$/.test(String(extra.category_id||'')))
+  url+='&category_id='+encodeURIComponent(extra.category_id);
  if(extra && action==='get_short_epg' && /^\d+$/.test(String(extra.stream_id))){
   url+='&stream_id='+encodeURIComponent(extra.stream_id);
   url+='&limit='+Math.max(1,Math.min(24,Number(extra.limit)||12));
  }
  xhr.open('GET',url,true);
- xhr.timeout=20000;
+ xhr.timeout=action==='get_vod_streams'?35000:20000;
  xhr.onload=function(){
   var obj=null;
   try{obj=JSON.parse(xhr.responseText);}catch(e){fail('Resposta incompatível');return;}
