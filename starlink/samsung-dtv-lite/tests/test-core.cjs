@@ -10,4 +10,9 @@ assert.equal(core.streamUrl('https://panel.example','usuario','senha',{stream_id
 assert.throws(()=>core.streamUrl('javascript:alert(1)','x','y',{stream_id:42}),/origin/i);
 assert.throws(()=>core.streamUrl('https://panel.example','x','y',{stream_id:'abc'}),/stream/i);
 assert.equal(core.pickTestChannel([{name:'Outro',stream_id:1},{name:'TV Cultura (720p)',stream_id:9}]).stream_id,9);
+assert.equal(core.isTransientLoginFailure('Tempo esgotado'),true);
+assert.equal(core.isTransientLoginFailure('Falha de rede'),true);
+assert.equal(core.isTransientLoginFailure('HTTP 503'),true);
+assert.equal(core.isTransientLoginFailure('HTTP 401'),false);
+assert.equal(core.isTransientLoginFailure('Resposta incompatível'),false);
 console.log('STARLINK Samsung DTV lite core: PASS');
