@@ -1,3 +1,22 @@
+# STARLINK DTV Samsung — QA 0.3.5 (M81 / Tizen)
+
+**Checkpoint de 11/11/2026:** vídeo real de TV Brasil (720p), originado do M81, reproduzido em movimento no emulador Samsung. Aplicativo de teste; ainda não homologado em TV física ou loja.
+
+## Evidências da QA 0.3.5
+
+- Emulador Tizen `emulator-26101`, aplicativo `STLTVR0011.StarlinkDTV`, pacote assinado por `M81_SAMSUNG_VALIDATION`.
+- Primeira medição: reprodução com 129,7 segundos e 54 eventos de tempo; diferenças RGB médias de [84,31; 62,95; 77,69] e [84,35; 78,95; 58,78] entre capturas separadas por 18 s, confirmando quadros diferentes.
+- Após recompilação preservando UTF-8: reprodução real do canal M81 com 105,2 s e 124 eventos; mudança RGB média de [35,94; 36,43; 32,30] em imagens separadas por 25 s.
+- Login automático revalidado na inicialização após nova instalação, com tratamento limitado a três tentativas para falhas transitórias.
+- Unit tests: `node tests/test-core.cjs`, `node tests/qa034-stall-guard.cjs` e `node --check app/main.js` passaram.
+- Artefato: `releases/STARLINKDTV-QA-0.3.5-VIDEO-M81-VALIDADO.wgt`, SHA-256 `F70959B970588768C387C9CACA1FC4DB0B46B0D620F7F05CECE3F8DA1EA59BAE` (1.933.586 bytes).
+- O botão de diagnóstico público usa um MP4 de teste, **mas o vídeo validado é a transmissão HLS do M81**, não o MP4.
+- A QA 0.3.4 anterior foi preservada em branch distinta. Não alterar produção, backend nem publicações usando este checkpoint.
+
+**Pendências:** teste prolongado de vários canais/filmes/séries, navegação em controle real, verificação em TV física, reprodução sem rebuffer em período maior e interface estilo Netflix. Não distribuir esta QA como versão final de loja.
+
+## Histórico e diagnóstico anterior
+
 # STARLINK DTV Samsung — QA 0.3.4 (M81 / Tizen)
 
 **Status:** QA 0.3.4 instalada e inicializada no emulador; reprodução contínua de vídeo NÃO aprovada. Não homologada para loja Samsung nem TV física.
