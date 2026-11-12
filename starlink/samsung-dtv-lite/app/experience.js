@@ -3,8 +3,8 @@
 // UI-only companion to the validated AVPlay player. No media proxy or transcoding.
 var m=w.StarlinkDiscovery,bridge=null,ready=false;
 var data={live:[],movie:[],series:[]},raw={live:[],movie:[],series:[]},categoryNames={live:{},movie:{},series:{}};
-var loading={},loaded={},failed={},filter='all',search='',history={},interests=[];
-var current=null,activeGroup=null,episodes=[],details={},lastStore=0,requested={},episodeRecords={};
+var loading={},loaded={},failed={},filter='all',search='',history={},interests=[],viewing={};
+var current=null,activeGroup=null,episodes=[],details={},lastStore=0,lastViewingStore=0,requested={},episodeRecords={},heroKey='';
 var INTERESTS=['Evangélico','Anime','Ação','Aventura','Ficção científica','Documentários','Suspense','Terror','Romance','Clássicos','Lançamentos','Desenhos antigos','Coisas antigas','Brasileiro'];
 function el(id){return d.getElementById(id);}
 function node(tag,cls,text){
@@ -35,6 +35,7 @@ function init(b){
   activeGroup=null;current=null;currentSeries=null;episodeList=[];details={};
   history=m.safeHistory(read(storeKey('watch-history'),{}));
   interests=read(storeKey('interests'),[]);if(!Array.isArray(interests))interests=[];
+  viewing=m.safeViewingStats(read(storeKey('viewing-stats'),{}));heroKey='';
   episodeRecords=read(storeKey('episodes'),{});
   if(!episodeRecords||typeof episodeRecords!=='object')episodeRecords={};
   search='';el('stream-search').value='';filter='all';
@@ -43,6 +44,7 @@ function init(b){
  ready=true;bridge=b;el('experience-shell').hidden=false;
  d.body.classList.add('experience-ready');
  history=m.safeHistory(read(storeKey('watch-history'),{}));
+ viewing=m.safeViewingStats(read(storeKey('viewing-stats'),{}));
  episodeRecords=read(storeKey('episodes'),{});
  if(!episodeRecords||typeof episodeRecords!=='object')episodeRecords={};
  interests=read(storeKey('interests'),[]);
@@ -65,6 +67,8 @@ function init(b){
   el('interests-panel').hidden=true;render();el('interest-open').focus();
  };
  el('detail-close').onclick=closeDetail;
+ el('hero-play').onclick=function(){if(heroItem)openItem(heroItem);};
+ el('hero-details').onclick=function(){if(heroItem&&heroItem.kind==='series')openSeries(heroItem);};
  el('quality-button').onclick=function(){
   var panel=el('quality-panel');panel.hidden=!panel.hidden;
   if(!panel.hidden){qualityChoices();var first=panel.querySelector('button');if(first)first.focus();}
@@ -95,7 +99,8 @@ function init(b){
    }
   }
   if(key===40&&focused&&focused.getAttribute&&focused.hasAttribute('data-shelf-filter')){
-   var first=el('experience-rails').querySelector('.stream-card');
+   var heroAction=el('hero-play');
+   var first=heroAction&&!heroAction.hidden?heroAction:el('experience-rails').querySelector('.stream-card');
    if(first){ev.preventDefault();first.focus();first.scrollIntoView({block:'nearest'});}
   }
  },true);
@@ -182,7 +187,7 @@ function card(item){
 }
 function render(){
  if(!ready)return;
- status();
+ status();renderHero();
  var target=el('experience-rails');target.textContent='';
  var list=all(),groups=[],q=norm(search);
  if(q.length>=2)groups=[{key:'search',title:'Resultados da busca',items:list.filter(function(item){
@@ -202,6 +207,53 @@ function render(){
   rail.appendChild(strip);target.appendChild(rail);count++;
  });
  if(!count)target.appendChild(node('p','empty-rail','Carregando conteúdos ou nenhum resultado encontrado.'));
+}
+var heroItem=null;
+function renderHero(){
+ if(!ready)return;
+ var winner=m.personalHero(data.live.concat(data.movie,data.series),viewing,interests);
+ var item=winner&&winner.item||null;
+ heroItem=item;
+ var title=el('hero-title'),kicker=el('hero-kicker'),desc=el('hero-description');
+ var playButton=el('hero-play'),detailButton=el('hero-details'),art=el('hero-background');
+ if(!item){
+  kicker.textContent='SEU STARLINK, DO SEU JEITO';
+  title.textContent='Um catálogo que combina com você';
+  desc.textContent='Escolha seus gêneros em Meus gostos ou assista aos favoritos para personalizar esta tela.';
+  playButton.hidden=true;detailButton.hidden=true;
+  if(heroKey!==''){heroKey='';art.removeAttribute('src');art.hidden=true;}
+  return;
+ }
+ kicker.textContent=winner.reason==='watched'?'BASEADO NO QUE VOCÊ MAIS ASSISTE':'ESCOLHIDO PELOS SEUS GOSTOS';
+ title.textContent=item.title;
+ desc.textContent=(item.kind==='live'?'Canal ao vivo':'Série'=== (item.kind==='series'?'Série':'')?'Sua série':'Seu filme')+
+  ' · '+(item.category||'Conteúdo STARLINK')+
+  (winner.reason==='watched'?' · Sua preferência ganhou destaque.':' · Uma sugestão para você.');
+ playButton.hidden=false;
+ playButton.textContent=item.kind==='series'?'Ver episódios':item.kind==='live'?'Assistir ao vivo':'Assistir filme';
+ detailButton.hidden=true;
+ var image=/^https:\/\//.test(item.backdrop||'')?item.backdrop:
+           /^https:\/\//.test(item.image||'')?item.image:'';
+ var key=item.key+'|'+image;
+ if(heroKey===key)return;
+ heroKey=key;art.hidden=true;art.removeAttribute('src');
+ if(!image)return;
+ art.onload=function(){if(heroKey===key)art.hidden=false;};
+ art.onerror=function(){if(heroKey===key){art.hidden=true;art.removeAttribute('src');}};
+ art.src=image;
+}
+function trackPlayback(item,deltaMs){
+ if(!ready||!item)return;
+ viewing=m.recordViewing(viewing,item,deltaMs,Date.now());
+ var now=Date.now();
+ if(now-lastViewingStore>=8000){
+  store(storeKey('viewing-stats'),viewing);lastViewingStore=now;
+ }
+}
+function returnToCatalog(){
+ if(!ready)return;
+ store(storeKey('viewing-stats'),viewing);
+ render();
 }
 function renderInterests(){
  var root=el('interest-options');root.textContent='';
@@ -326,6 +378,7 @@ function ended(item){
  }
 }
 w.StarlinkExperience={init:init,onLiveLoaded:onLiveLoaded,onPlaybackStart:onPlaybackStart,
- onPlaybackProgress:progress,onPlaybackEnd:ended,resumePosition:resume,
+ onPlaybackProgress:progress,onPlaybackEnd:ended,onPlaybackActivity:trackPlayback,
+ onReturnToCatalog:returnToCatalog,resumePosition:resume,
  active:function(){return ready;},render:render,loading:function(){return loading;}};
 })(window,document);
