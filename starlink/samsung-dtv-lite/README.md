@@ -1,4 +1,14 @@
-# STARLINK DTV Samsung — QA 0.3.6 PERSONALIZED (EXPERIMENTAL)
+# STARLINK DTV Samsung — Candidatas QA 0.3.5 a 0.3.8
+
+## Checkpoint 12/11/2026 — QA 0.3.8 EPG/SINOPSES-LITE, vídeo real validado
+
+- **Emulador:** Tizen `STARLINK-DIRECT-QA`, app `STLTVR0011.StarlinkDTV`, WGT assinado `releases/STARLINKDTV-QA-0.3.8-EPG-SINOPSES-LITE.wgt` (1.957.403 bytes; SHA-256 `B8197F6E55393EDE6797B46D41507205B78E8D1179620187EC896416D72CB098`).
+- **Vídeo M81:** canal **TV Brasil (720p)** exibiu vídeo real, em movimento e tela cheia, por **mais de 2 minutos**, após seleção pelo catálogo; duas séries de observações independentes, a cada 6–8 segundos, com variação de quadros em todas as amostras. O segundo trecho apresentou alteração visual entre **81,7% e 97,4%** da região monitorada por amostra. **Nenhum congelamento prolongado foi detectado**. O teste não mede FPS real ou pausas curtas e não equivale à validação de todos os streams.
+- **Diagnóstico:** canal anterior (MTV Drag) deixou a tela preta, mas o botão voltar recuperou imediatamente o catálogo; não interpretar essa fonte como prova de falha global do AVPlay. TV Brasil foi buscada e selecionada no fluxo Xtream/M81, não no vídeo de amostra externo.
+- **Catálogo:** 1.644 canais, 5.152 séries e filmes temporariamente indisponíveis (0 exibidos na captura), categorias Abertos/subgrupos e logos sem zoom visíveis. Filmes, séries, sinopses e troca de qualidade ainda precisam de validação funcional no emulador/TV.
+- **Guia/sinopses:** botões e consultas sob demanda implementados na QA 0.3.8. O backend de recuperação de associações EPG/metadados está isolado na PR [#45 do painel M81](https://github.com/sempaio/painel-m81-iptv-cloud/pull/45) e **não foi implantado na produção**. Não prometer horários nem sinopses de filmes enquanto o painel não entregar os dados.
+- **Preservação:** QA 0.3.5 permanece baseline de vídeo validado; QA 0.3.8 é candidata experimental, agora com **TV Brasil aprovada no emulador**, sem promoção automática de release estável.
+
 
 **Checkpoint 11/11/2026:** pacote assinado, instalado e aberto no emulador Samsung. Catálogo M81 carregado, com 1.644 canais e 5.152 séries na captura de diagnóstico. O fundo personalizado já destacou **1 Contra Todos** usando o histórico de `Continuar assistindo`.
 
