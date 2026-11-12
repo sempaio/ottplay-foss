@@ -174,3 +174,5 @@ body.playing.controls-visible #player-controls{opacity:1;visibility:visible}
  .epg-program-time{font-size:15px}.epg-program-title{font-size:21px}
  .guide-catalog-button{font-size:16px}
 }
+
+.episode-description{font-size:1.08vw;line-height:1.4;color:#cdd9e5;margin:0 0 .75vw;padding:0 .6vw}
