@@ -70,9 +70,34 @@ function init(b){
   if(!panel.hidden){qualityChoices();var first=panel.querySelector('button');if(first)first.focus();}
  };
  d.addEventListener('keydown',function(ev){
-  if(ev.keyCode!==10009&&ev.keyCode!==27)return;
-  if(!el('quality-panel').hidden){ev.preventDefault();el('quality-panel').hidden=true;el('quality-button').focus();return;}
-  if(!el('experience-detail').hidden){ev.preventDefault();closeDetail();}
+  var key=ev.keyCode,focused=d.activeElement;
+  if(key===10009||key===27){
+   if(!el('quality-panel').hidden){
+    ev.preventDefault();el('quality-panel').hidden=true;el('quality-button').focus();return;
+   }
+   if(!el('experience-detail').hidden){ev.preventDefault();closeDetail();return;}
+  }
+  if(!active()||!el('experience-detail').hidden||!el('quality-panel').hidden)return;
+  var rail=focused&&focused.closest?focused.closest('.stream-rail'):null;
+  if(rail&&focused.classList.contains('stream-card')){
+   var cards=rail.querySelectorAll('.stream-card'),idx=-1;
+   for(var i=0;i<cards.length;i++)if(cards[i]===focused){idx=i;break;}
+   if(idx<0)return;
+   if(key===39&&idx<cards.length-1){ev.preventDefault();cards[idx+1].focus();cards[idx+1].scrollIntoView({block:'nearest',inline:'nearest'});return;}
+   if(key===37&&idx>0){ev.preventDefault();cards[idx-1].focus();cards[idx-1].scrollIntoView({block:'nearest',inline:'nearest'});return;}
+   if(key===38||key===40){
+    var neighbor=key===40?rail.nextElementSibling:rail.previousElementSibling;
+    if(neighbor&&neighbor.classList.contains('stream-rail')){
+     var next=neighbor.querySelectorAll('.stream-card'),target=next[Math.min(idx,next.length-1)];
+     if(target){ev.preventDefault();target.focus();target.scrollIntoView({block:'nearest',inline:'nearest'});}
+    }else if(key===38){var selected=el('experience-tabs').querySelector('button.selected');if(selected){ev.preventDefault();selected.focus();}}
+    return;
+   }
+  }
+  if(key===40&&focused&&focused.getAttribute&&focused.hasAttribute('data-shelf-filter')){
+   var first=el('experience-rails').querySelector('.stream-card');
+   if(first){ev.preventDefault();first.focus();first.scrollIntoView({block:'nearest'});}
+  }
  },true);
  status();render();
 }
