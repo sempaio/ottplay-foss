@@ -51,6 +51,34 @@ const url = 'file:///' + path.resolve(__dirname, '../app/index.html').replace(/\
    assert.equal(await p.locator('#login-keyboard').isVisible(),false);
    assert.equal(await p.locator('#login-screen').isVisible(),true);
  });
+ await test('QA 1.0.0 login: Enter from lost focus and remote arrows reach username and password',async p=>{
+   await p.waitForTimeout(50);
+   await p.evaluate(()=>document.activeElement.blur());
+   await p.keyboard.press('Enter');
+   assert.equal(await p.evaluate(()=>document.activeElement.id),'username');
+   await p.keyboard.press('ArrowDown');
+   assert.equal(await p.evaluate(()=>document.activeElement.id),'password');
+   await p.keyboard.press('ArrowUp');
+   assert.equal(await p.evaluate(()=>document.activeElement.id),'username');
+   await p.keyboard.press('ArrowRight');
+   assert.equal(await p.evaluate(()=>document.activeElement.id),'username-keyboard');
+   await p.keyboard.press('ArrowLeft');
+   assert.equal(await p.evaluate(()=>document.activeElement.id),'username');
+   await p.keyboard.press('ArrowDown');
+   await p.keyboard.press('ArrowRight');
+   assert.equal(await p.evaluate(()=>document.activeElement.id),'password-keyboard');
+ });
+ await test('native Samsung IME Done advances from username to password to Connect without sending credentials',async p=>{
+   await p.waitForTimeout(50);
+   await p.locator('#username').focus();
+   await p.evaluate(()=>document.dispatchEvent(new KeyboardEvent('keydown',{keyCode:65376,which:65376,bubbles:true,cancelable:true})));
+   await p.waitForTimeout(30);
+   assert.equal(await p.evaluate(()=>document.activeElement.id),'password');
+   await p.evaluate(()=>document.dispatchEvent(new KeyboardEvent('keydown',{keyCode:65376,which:65376,bubbles:true,cancelable:true})));
+   await p.waitForTimeout(30);
+   assert.equal(await p.evaluate(()=>document.activeElement.id),'login-button');
+   assert.equal(await p.evaluate(()=>document.querySelector('#password').value),'');
+ });
  await browser.close();
- console.log('QA033_REMOTE_LOGIN_KEYBOARD',passed,'/4 passed');
+ console.log('QA033_REMOTE_LOGIN_KEYBOARD',passed,'/6 passed');
 })().catch(e=>{console.error(e);process.exitCode=1;});
