@@ -421,6 +421,26 @@ d.addEventListener('keydown',function(ev){
   }
   return;
  }
+ // Login screen: native TV browsers may not advance focus between
+ // username, password and Connect after Enter/IME. The fallback keyboard
+ // above takes precedence while it is open.
+ if(!state.logged&&!byId('login-screen').hidden){
+  var loginTarget=core.loginFocusTarget(d.activeElement&&d.activeElement.id,key);
+  if(loginTarget){
+   if(key===65376){
+    // Do not prevent Samsung IME Done from closing its native keyboard.
+    w.setTimeout(function(){
+     if(!state.logged&&!byId('login-screen').hidden&&byId('login-keyboard').hidden)
+      byId(loginTarget).focus();
+    },0);
+   }else{
+    ev.preventDefault();
+    byId(loginTarget).focus();
+   }
+   return;
+  }
+  return;
+ }
  if(state.playing){
   if(key===10009||key===27){
    ev.preventDefault();
