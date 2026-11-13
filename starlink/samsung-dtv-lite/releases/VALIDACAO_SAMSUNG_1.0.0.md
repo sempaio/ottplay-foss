@@ -1,7 +1,7 @@
-# STARLINK DTV Samsung — versão principal preservada
+# STARLINK DTV Samsung 1.0.0 — artefato preservado (não é a principal validada na TV)
 
 **Data:** 12/11/2026
-**Estado:** checkpoint funcional validado pelo usuário, sem substituição automática da instalação em produção.
+**Estado:** artefato assinado preservado. **Correção de referência em 13/11/2026:** o usuário informou que a versão comprovadamente funcional na TV é a **QA 3.1**, não esta 1.0.0. Não promover 1.0.0 como principal de TV sem comprovação física.
 
 ## Pacote oficial preservado
 
@@ -47,7 +47,7 @@ Nem todos os episódios nem todos os filmes receberam validação de reproduçã
 
 ## Regra operacional
 
-Esta versão 1.0.0 é a **referência principal de rollback**, não deve ser
+Esta versão 1.0.0 é **um artefato alternativo preservado, não o padrão validado na TV**, não deve ser
 substituída por branches experimentais de buffer, TMDB ou catálogo sem
 uma nova validação funcional e aprovação explícita do usuário.
 Os ajustes de buffer devem seguir em branch separada.
