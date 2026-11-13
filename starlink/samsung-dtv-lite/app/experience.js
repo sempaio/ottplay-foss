@@ -532,6 +532,8 @@ function openMovie(item){
  }
  var key='vod:'+item.id;
  var cached=metaCache&&metaCache.get(key,12*60*60*1000);
+ if(cached&&meta&&meta.synopsisCacheTtl)
+  cached=metaCache.get(key,meta.synopsisCacheTtl(cached,item));
  if(cached){show(cached);return;}
  bridge.request('get_vod_info',function(reply){
   if(metaCache)metaCache.put(key,reply||{});
@@ -638,10 +640,19 @@ function openSeries(series){
   if(seasons.length)showSeason(seasons[0]);
   else el('episode-list').appendChild(node('p','empty-rail','Nenhum episódio reproduzível encontrado.'));
  }
- if(details[series.key]){showDetail(details[series.key]);return;}
+ var seriesCacheKey='series:'+series.id;
+ var cachedSeries=details[series.key];
+ if(cachedSeries){
+  var ttl=meta&&meta.synopsisCacheTtl?
+   meta.synopsisCacheTtl(cachedSeries,series):12*60*60*1000;
+  if(!metaCache||metaCache.get(seriesCacheKey,ttl)){
+   showDetail(cachedSeries);return;
+  }
+ }
  el('episode-list').appendChild(node('p','empty-rail','Carregando temporadas e episódios...'));
  bridge.request('get_series_info',function(data){
   details[series.key]=data||{};
+  if(metaCache)metaCache.put(seriesCacheKey,details[series.key]);
   if(currentSeries&&currentSeries.key===series.key)showDetail(data);
  },function(){el('episode-list').textContent='Não foi possível carregar episódios.';},{series_id:series.id});
 }

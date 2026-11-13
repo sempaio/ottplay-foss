@@ -40,6 +40,11 @@
    genre:str(info.genre||movie.genre||(item&&item.category))
   };
  }
+ // A missing synopsis must be rechecked soon after the M81 metadata source changes.
+ // Keep actual descriptions cached for twelve hours to avoid needless requests.
+ function synopsisCacheTtl(payload,item){
+  return synopsis(payload,item).description?12*60*60*1000:60*1000;
+ }
  function cache(max){
   var items={},order=[],limit=Math.max(1,Math.min(100,Number(max)||60));
   return {
@@ -59,5 +64,5 @@
    clear:function(){items={};order=[];}
   };
  }
- return {decodeXtream:decodeXtream,guide:guide,synopsis:synopsis,cache:cache};
+ return {decodeXtream:decodeXtream,guide:guide,synopsis:synopsis,synopsisCacheTtl:synopsisCacheTtl,cache:cache};
 });
