@@ -249,7 +249,7 @@
     el('keyboard-password').onclick=function(){openKeyboard('password');};
     el('back').onclick = back; el('stop').onclick = back; el('pause').onclick = pause;
     function searchLiveChannels() {
-        var term = el('search').value.replace(/^\\s+|\\s+$/g, '');
+        var term = el('search').value.replace(/^\s+|\s+$/g, '');
         limit = 60;
         if (kind !== 'live' || channelSearchFavorites) { render(); return; }
         if (!term) {
