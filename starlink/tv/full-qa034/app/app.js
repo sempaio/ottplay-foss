@@ -1,7 +1,7 @@
 (function (w, d, C, G) {
     'use strict';
     var account = null, kind = 'live', rows = [], categories = [], category = '', stack = [], limit = 60;
-    var genreFilter = 'Todos os gêneros', categoryRows = [], searchCache = {}, searchAll = false, searchTimer = null, favoritesView = false;
+    var genreFilter = 'Todos os gêneros', categoryRows = [], searchCache = {}, searchAll = false, searchTimer = null, favoritesView = false, searchPending = false;
     var generation = 0, pending = [], playerGeneration = 0, av = null, hls = null, current = null, lastFocus = null, favorites = [], activeStream = null;
     function el(id) { return d.getElementById(id); }
     function message(text) { el('status').textContent = text; }
@@ -141,7 +141,7 @@
         });
     }
     function loadCategory(row) {
-        abort(); w.clearTimeout(searchTimer); category = String(row.category_id); rows = []; categoryRows = []; searchAll = false; favoritesView = false; limit = 60; stack = []; el('search').value = '';
+        abort(); w.clearTimeout(searchTimer); category = String(row.category_id); rows = []; categoryRows = []; searchAll = false; searchPending = false; favoritesView = false; limit = 60; stack = []; el('search').value = '';
         renderCategories(); el('title').textContent = row.category_name || title(); el('items').textContent = ''; message('Carregando categoria…');
         api(C.types[kind][1], 'category_id', category, function (error, data) {
             if (error) return message(error);
@@ -152,7 +152,7 @@
     function loadKind(next) {
         abort(); w.clearTimeout(searchTimer);
         kind = next; rows = []; categoryRows = []; categories = []; category = ''; stack = [];
-        searchAll = false; favoritesView = false; genreFilter = 'Todos os gêneros'; limit = 60;
+        searchAll = false; searchPending = false; favoritesView = false; genreFilter = 'Todos os gêneros'; limit = 60;
         el('search').value = ''; el('title').textContent = title();
         el('subtitle').textContent = next === 'series' ? 'Séries organizadas por gênero. Escolha o que assistir.' :
             next === 'vod' ? 'Escolha o gênero de filmes que deseja assistir.' : 'Escolha uma categoria para assistir.';
@@ -274,13 +274,13 @@
             saveRemembered(); el('password').value = ''; safeSave('starlink-rebuild-server', server); el('login').hidden = true; el('library').hidden = false; loadKind('live');
         });
     };
-    el('logout').onclick = function () { searchCache = {}; categoryRows = []; searchAll = false; favoritesView = false; clearRemembered(); if(remoteKeyboardField)closeKeyboard(); abort(); stopPlayer(); account = null; rows = []; categories = []; favorites = []; saveFavorites(); el('items').textContent = ''; el('categories').textContent = ''; el('library').hidden = true; el('login').hidden = false; el('password').value = ''; el('connect').disabled = false; message('Você saiu da conta.'); el('username').focus(); };
+    el('logout').onclick = function () { searchCache = {}; categoryRows = []; searchAll = false; searchPending = false; favoritesView = false; clearRemembered(); if(remoteKeyboardField)closeKeyboard(); abort(); stopPlayer(); account = null; rows = []; categories = []; favorites = []; saveFavorites(); el('items').textContent = ''; el('categories').textContent = ''; el('library').hidden = true; el('login').hidden = false; el('password').value = ''; el('connect').disabled = false; message('Você saiu da conta.'); el('username').focus(); };
     Array.prototype.forEach.call(d.querySelectorAll('[data-kind]'), function (b) { b.onclick = function () { loadKind(b.getAttribute('data-kind')); }; });
     el('keyboard-username').onclick=function(){openKeyboard('username');};
     el('keyboard-password').onclick=function(){openKeyboard('password');};
     el('back').onclick = back; el('stop').onclick = back; el('pause').onclick = pause;
     function searchAcrossCategories() {
-        var term = el('search').value.replace(/^\\s+|\\s+$/g, '');
+        var term = el('search').value.replace(/^\s+|\s+$/g, '');
         limit = 60;
         if (kind === 'series' || favoritesView) { render(); return; }
         if (!term) {
@@ -288,11 +288,13 @@
             render(); return;
         }
         if (searchAll) { render(); return; }
+        if (searchPending) return;
         if (searchCache[kind]) {
             rows = searchCache[kind]; searchAll = true; render(); return;
         }
-        message('Buscando em todas as categorias…');
+        searchPending = true; message('Buscando em todas as categorias…');
         api(C.types[kind][1], '', '', function (error, data) {
+            searchPending = false;
             if (error) return message(error);
             if (!Array.isArray(data)) return message('Busca indisponível neste servidor.');
             searchCache[kind] = data.filter(function (r) {
@@ -316,7 +318,7 @@
     };
     el('more').onclick = function () { limit += 60; render(); };
     el('favorites').onclick = function () {
-        abort(); favoritesView = true; searchAll = false; stack = [];
+        abort(); favoritesView = true; searchAll = false; searchPending = false; stack = [];
         rows = favorites.map(function (f) {
             return { name: f.row.name || f.row.title, stream_icon: f.row.stream_icon || f.row.cover,
                 _favorite: true, _kind: f.kind, _row: f.row };
