@@ -254,7 +254,7 @@
         try { if (av) { if (av.getState() === 'PLAYING') { av.pause(); if(activeStream)activeStream.paused=true; } else if (av.getState() === 'PAUSED') { av.play(); if(activeStream){activeStream.paused=false;activeStream.lastAdvanceAt=Date.now();} } } else { var v = el('video'); if (v.paused) { if(activeStream){activeStream.paused=false;activeStream.lastAdvanceAt=Date.now();} var p = v.play(); if (p && p.catch) p.catch(function () { playerMessage('Não foi possível continuar o vídeo.'); }); } else { v.pause(); if(activeStream)activeStream.paused=true; } } } catch (_) { playerMessage('Não foi possível controlar a reprodução.'); }
     }
     function back() {
-        abort();
+        abort(); searchPending = false; w.clearTimeout(searchTimer);
         if (!el('login').hidden) { account = null; el('connect').disabled = false; message('Pronto para conectar.'); return; }
         if (!el('playback').hidden) { stopPlayer(); return; }
         if (stack.length) { var previous = stack.pop(); rows = previous.rows; genreFilter = previous.genreFilter || 'Todos os gêneros'; el('title').textContent = previous.title; el('search').value = ''; renderCategories(); render(); focusFirst(el('items')); }
@@ -300,6 +300,9 @@
             searchCache[kind] = data.filter(function (r) {
                 return r && typeof r === 'object' && Number(r.is_adult) !== 1 && Number(r.adult) !== 1;
             });
+            if (!el('search').value.replace(/^\s+|\s+$/g, '')) {
+                rows = categoryRows; searchAll = false; render(); return;
+            }
             rows = searchCache[kind]; searchAll = true; render();
         });
     }
