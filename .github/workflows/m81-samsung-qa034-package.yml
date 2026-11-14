@@ -1,0 +1,48 @@
+name: "M81 Samsung QA034: ZIP para 2APP"
+on:
+  push:
+    branches:
+      - feat/m81-app-01-samsung-qa034-ui-generos-20261114
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  zip-qa034:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout approved QA034 candidate
+        uses: actions/checkout@v4
+      - name: Check JavaScript syntax
+        shell: bash
+        run: |
+          node --check starlink/tv/full-qa034/app/app.js
+          node --check starlink/tv/full-qa034/app/catalog.js
+          node --check starlink/tv/full-qa034/app/genres.js
+          node starlink/tv/full-qa034/tests/qa034-genres-tests.cjs
+      - name: Package unsigned WGT and complete source for 2APP
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile, ZIP_DEFLATED
+          import hashlib, shutil
+          app = Path('starlink/tv/full-qa034/app')
+          out = Path('dist/STARLINK_DTV_QA034_2APP')
+          project = out/'PROJETO_TIZEN'
+          shutil.copytree(app,project,dirs_exist_ok=True)
+          with ZipFile(out/'STARLINK_DTV_QA034_NAO_ASSINADO.wgt','w',ZIP_DEFLATED) as z:
+              for f in sorted(app.rglob('*')):
+                  if f.is_file():z.write(f,f.relative_to(app).as_posix())
+          source=(out/'LEIA_ANTES.txt')
+          source.write_text('STARLINK DTV QA 0.3.4 - candidato visual M81-APP-01\\nPara empacotar pelo 2APP, utilize PROJETO_TIZEN.\\nO WGT incluido e NAO ASSINADO: nao esta pronto para instalacao direta.\\nTeste em TV antes de substituir a versao funcional.\\nPR: https://github.com/sempaio/ottplay-foss/pull/10\\n',encoding='utf-8')
+          for f in sorted(out.iterdir()):
+              if f.is_file():print(f.name, f.stat().st_size, hashlib.sha256(f.read_bytes()).hexdigest())
+          PY
+      - name: Upload ZIP bundle (WGT + Tizen project)
+        uses: actions/upload-artifact@v4
+        with:
+          name: STARLINK-DTV-QA034-2APP-WGT-ZIP
+          path: dist/STARLINK_DTV_QA034_2APP
+          retention-days: 7
+          if-no-files-found: error
