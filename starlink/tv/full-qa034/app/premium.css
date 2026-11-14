@@ -1,0 +1,56 @@
+/* M81-APP-01 | Theater 4 Premium visual skin — preserves QA 0.3.4 playback JS. */
+:root{--p-bg:#06101e;--p-deep:#020712;--p-accent:#09d7f0;--p-text:#eef9ff;--p-muted:#a5b7c8;}
+html,body{background:var(--p-deep);color:var(--p-text);}
+body{font-family:Arial,sans-serif;}
+#shell{padding-top:95px;min-height:100vh;background:radial-gradient(ellipse at 74% 15%,#0d3754 0,#061629 38%,#020814 76%);}
+.app-header{height:94px;padding:12px 44px 12px 55px;background:#06101eee;border-bottom:1px solid #16435a;box-shadow:none;}
+.app-header img{display:none;}
+.brand-copy{gap:0;}
+.brand-kicker{font-size:15px;letter-spacing:3px;color:#4de5f2;order:2}
+.brand-copy strong{font-size:35px;letter-spacing:1px;line-height:1.2;}
+.brand-copy small{color:#15daf1;font-size:38px;}
+#build{font-size:16px;color:#91aabd;margin:0 0 0 auto;}
+#library{margin-left:260px;padding:20px 46px 45px 36px;min-height:calc(100vh - 95px);}
+#library #tabs{position:fixed;top:106px;left:15px;right:auto;z-index:25;display:flex;flex-direction:column;width:230px;align-items:stretch;gap:11px;max-height:calc(100vh - 122px);overflow:auto;padding:16px 8px;margin:0;border-radius:18px;background:#05111f;}
+#library #tabs button{min-height:60px;width:100%;border:2px solid transparent;border-radius:11px;background:transparent;box-shadow:none;color:#d2e3ed;font-size:22px;text-align:left;padding:13px 15px;font-weight:600;}
+#library #tabs button:hover,#library #tabs button:focus,#library #tabs button[aria-pressed="true"]{color:white;background:#086b83;border-color:#2fecff;box-shadow:0 0 10px #08ddfa55;outline:none;}
+#library #tabs #logout{margin:15px 0 0;border-color:transparent;background:transparent;}
+#premium-hero{position:relative;isolation:isolate;display:flex;align-items:center;min-height:310px;overflow:hidden;border-radius:20px;padding:36px 45px;background:radial-gradient(ellipse at 72% 42%,#0f5162 0%,#07243c 36%,#03101d 76%);box-shadow:0 12px 48px #0007;border:1px solid #184556;}
+#premium-hero::before{content:"";position:absolute;right:-5%;top:-20%;width:55%;height:150%;background:radial-gradient(ellipse,#0892ad55 0%,transparent 62%);pointer-events:none;z-index:-1;}
+#premium-hero-art{position:absolute;z-index:-1;right:0;top:0;height:100%;width:61%;object-fit:cover;opacity:.67;-webkit-mask-image:linear-gradient(90deg,transparent 0%,black 41%);mask-image:linear-gradient(90deg,transparent 0%,black 41%);}
+#premium-hero-art[hidden]{display:none!important;}
+.premium-hero-copy{position:relative;z-index:1;max-width:58%;}
+#premium-eyebrow{display:block;text-transform:uppercase;color:#28e7f5;font-size:16px;letter-spacing:3px;margin-bottom:14px;font-weight:700;}
+#premium-hero-title{font-size:54px;line-height:1.08;margin:0 0 18px;font-weight:900;color:white;text-shadow:0 3px 15px #000a;}
+#premium-hero-description{color:#d3e8f0;font-size:22px;line-height:1.38;max-width:590px;margin:0 0 22px;}
+.premium-hero-actions{display:flex;gap:14px;align-items:center;}
+.premium-hero-actions button{border:2px solid #38dff1;background:#09cfe5;color:#00131e;font-size:22px;font-weight:bold;padding:15px 22px;border-radius:10px;}
+.premium-hero-actions #premium-live{background:#172d42ca;color:white;border-color:#66849b;}
+.premium-hero-actions button:focus{outline:4px solid white;outline-offset:3px;}
+.toolbar{padding:28px 2px 15px;min-height:101px;border:0;gap:20px;}
+.toolbar-heading h1{font-size:33px;margin:0 0 7px;}
+.toolbar-heading p{font-size:19px;color:#a4c1d2;}
+.toolbar-actions{gap:12px;}
+.toolbar-actions button{border-radius:10px;background:#102439;border-color:#2a5c70;padding:12px 15px;font-size:18px;}
+.toolbar input{background:#09182a;border:2px solid #2a8394;max-width:330px;}
+#categories{display:flex;gap:12px;overflow-x:auto;padding:8px 4px 17px;margin:0 0 18px;min-height:71px;scrollbar-width:thin;}
+#categories button{margin:0;flex-shrink:0;border:1px solid #2b586d;background:#102337;color:#e7f4fc;border-radius:30px;font-size:20px;font-weight:500;min-height:50px;padding:10px 25px;box-shadow:none;}
+#categories button[aria-pressed="true"]{background:#04d1e8;color:#00131a;border-color:#55edff;box-shadow:none;}
+#categories button:focus{outline:3px solid white;outline-offset:3px;box-shadow:0 0 12px #00d3e5;}
+#items{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:20px 16px;padding:8px 6px 35px;}
+#items .item{width:100%;height:286px;min-height:0;min-width:0;display:flex;flex-direction:column;text-align:left;border:2px solid #1b3a4b;border-radius:12px;padding:0;overflow:hidden;background:#101d2a;box-shadow:0 8px 20px #0008;transition:transform .12s ease,border-color .12s ease;}
+#items .item img{width:100%;height:228px;flex:0 0 228px;object-fit:cover;display:block;margin:0;background:linear-gradient(135deg,#082c46,#10233b);}
+#items .item strong{padding:11px 12px 5px;font-size:19px;line-height:1.15;color:#f7faff;text-overflow:ellipsis;white-space:nowrap;display:block;overflow:hidden;}
+#items .item:focus{outline:3px solid white;outline-offset:2px;border-color:var(--p-accent);box-shadow:0 0 20px #00eaff88;transform:scale(1.035);z-index:4;}
+#items .item:not(:has(img))::before{content:"▶";display:flex;align-items:center;justify-content:center;height:228px;flex:0 0 228px;color:#28e1ed;font-size:54px;background:linear-gradient(125deg,#0c344b,#122137);}
+#status{margin:2px 38px 35px 296px;color:#9ac2d1;font-size:18px;min-height:28px;}
+#more{display:block;margin:14px auto 35px;background:#0e667a;border:2px solid #16d8ef;color:white;border-radius:12px;}
+button:focus,input:focus{outline:3px solid white;outline-offset:3px;}
+#playback{z-index:100;background:transparent;}
+#player-controls{background:linear-gradient(transparent,#000d);padding:38px 52px 30px;}
+#player-controls button{background:#112234dd;color:#fff;border:1px solid #668ba0;border-radius:10px;font-size:20px;}
+#player-controls button:focus{outline:4px solid white;}
+#login{margin:0 auto;padding:56px 35px;max-width:910px;}
+#login button:focus,#login input:focus{outline:4px solid #22e7ff;}
+@media(max-width:1450px){#library{margin-left:214px;padding:18px 24px}#library #tabs{width:197px}#library #tabs button{font-size:18px}#premium-hero{min-height:280px}#premium-hero-title{font-size:42px}#items{grid-template-columns:repeat(4,minmax(0,1fr))}#status{margin-left:240px}}
+/* Keep the original Tizen application identity in its separate QA package; premium has its own app id. */
