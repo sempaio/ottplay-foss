@@ -1,6 +1,7 @@
-(function (w, d, C) {
+(function (w, d, C, G) {
     'use strict';
     var account = null, kind = 'live', rows = [], categories = [], category = '', stack = [], limit = 60;
+    var genreFilter = 'Todos os gêneros', categoryRows = [], searchCache = {}, searchAll = false, searchTimer = null, favoritesView = false;
     var generation = 0, pending = [], playerGeneration = 0, av = null, hls = null, current = null, lastFocus = null, favorites = [], activeStream = null;
     function el(id) { return d.getElementById(id); }
     function message(text) { el('status').textContent = text; }
@@ -102,12 +103,15 @@
         var b = d.createElement('button'); b.type = 'button'; b.textContent = text;
         if (className) b.className = className; b.onclick = handler; return b;
     }
-    function title() { return kind === 'live' ? 'TV ao vivo' : kind === 'vod' ? 'Filmes' : 'Séries'; }
+    function title() { return kind === 'live' ? 'Canais ao vivo' : kind === 'vod' ? 'Filmes' : 'Séries'; }
     function favoriteKey(row, type) { return type + ':' + (row.stream_id || row.series_id || row.id || row.direct_source || row.stream_url || row.url); }
     function saveFavorites() { return true; } // Session only: stream URLs can contain credentials.
     function render() {
         var term = el('search').value.toLocaleLowerCase(), list = el('items'); list.textContent = '';
-        var filtered = rows.filter(function (r) { return String(r.name || r.title || '').toLocaleLowerCase().indexOf(term) >= 0; });
+        var filtered = rows.filter(function (r) {
+            var nameMatches = String(r.name || r.title || '').toLocaleLowerCase().indexOf(term) >= 0;
+            return nameMatches && (kind !== 'series' || favoritesView || stack.length > 0 || term || G.matches(r, genreFilter));
+        });
         filtered.slice(0, limit).forEach(function (row) {
             var b = button('', function () { open(row); }, 'item'), label = d.createElement('strong');
             var imageUrl = C.http(row.stream_icon || row.cover || row.movie_image);
@@ -120,28 +124,66 @@
     }
     function renderCategories() {
         var rail = el('categories'); rail.textContent = '';
+        if (favoritesView || (kind === 'series' && stack.length)) return;
+        if (kind === 'series') {
+            G.options(rows).forEach(function (name) {
+                var b = button(name, function () {
+                    genreFilter = name; limit = 60; el('search').value = '';
+                    renderCategories(); render(); focusFirst(el('items'));
+                });
+                b.setAttribute('aria-pressed', String(name === genreFilter)); rail.appendChild(b);
+            });
+            return;
+        }
         categories.forEach(function (row) {
             var b = button(row.category_name || 'Categoria', function () { loadCategory(row); });
             b.setAttribute('aria-pressed', String(row.category_id) === category ? 'true' : 'false'); rail.appendChild(b);
         });
     }
     function loadCategory(row) {
-        abort(); category = String(row.category_id); rows = []; limit = 60; stack = []; el('search').value = '';
+        abort(); w.clearTimeout(searchTimer); category = String(row.category_id); rows = []; categoryRows = []; searchAll = false; favoritesView = false; limit = 60; stack = []; el('search').value = '';
         renderCategories(); el('title').textContent = row.category_name || title(); el('items').textContent = ''; message('Carregando categoria…');
         api(C.types[kind][1], 'category_id', category, function (error, data) {
             if (error) return message(error);
             if (!Array.isArray(data)) return message('O servidor não retornou uma lista de conteúdos.');
-            rows = data.filter(function (r) { return r && typeof r === 'object' && Number(r.is_adult) !== 1 && Number(r.adult) !== 1; }); render(); focusFirst(el('items'));
+            rows = data.filter(function (r) { return r && typeof r === 'object' && Number(r.is_adult) !== 1 && Number(r.adult) !== 1; }); categoryRows = rows; render(); focusFirst(el('items'));
         });
     }
     function loadKind(next) {
-        abort(); kind = next; rows = []; categories = []; category = ''; stack = []; el('search').value = ''; el('title').textContent = title();
-        el('items').textContent = ''; el('categories').textContent = ''; el('more').hidden = true; message('Carregando categorias…');
+        abort(); w.clearTimeout(searchTimer);
+        kind = next; rows = []; categoryRows = []; categories = []; category = ''; stack = [];
+        searchAll = false; favoritesView = false; genreFilter = 'Todos os gêneros'; limit = 60;
+        el('search').value = ''; el('title').textContent = title();
+        el('subtitle').textContent = next === 'series' ? 'Séries organizadas por gênero. Escolha o que assistir.' :
+            next === 'vod' ? 'Escolha o gênero de filmes que deseja assistir.' : 'Escolha uma categoria para assistir.';
+        Array.prototype.forEach.call(d.querySelectorAll('#tabs [data-kind]'), function (b) {
+            b.setAttribute('aria-pressed', String(b.getAttribute('data-kind') === kind));
+        });
+        el('items').textContent = ''; el('categories').textContent = ''; el('more').hidden = true;
+        message('Carregando categorias…');
         api(C.types[kind][0], '', '', function (error, data) {
-            if (error) return message(error);
-            if (!Array.isArray(data)) return message('Categorias incompatíveis com Xtream.');
-            categories = data.filter(function (r) { return r && r.category_id != null && Number(r.is_adult) !== 1; });
-            renderCategories(); message(categories.length ? 'Escolha uma categoria para carregar.' : 'Nenhuma categoria disponível.'); focusFirst(el('categories'));
+            if (error && kind !== 'series') return message(error);
+            if (!Array.isArray(data) && kind !== 'series') return message('Categorias incompatíveis com Xtream.');
+            categories = Array.isArray(data) ? data.filter(function (r) {
+                return r && r.category_id != null && Number(r.is_adult) !== 1;
+            }) : [];
+            if (kind === 'series') {
+                message('Organizando séries por gênero…');
+                api(C.types.series[1], '', '', function (seriesError, seriesData) {
+                    if (seriesError) return message(seriesError);
+                    if (!Array.isArray(seriesData)) return message('O servidor não retornou séries.');
+                    rows = seriesData.filter(function (r) {
+                        return r && typeof r === 'object' && Number(r.is_adult) !== 1 && Number(r.adult) !== 1;
+                    });
+                    rows.forEach(function (r) { r._genres = G.classify(r); });
+                    categoryRows = rows;
+                    renderCategories(); render(); focusFirst(el('categories'));
+                });
+                return;
+            }
+            renderCategories();
+            message(categories.length ? 'Escolha uma categoria para carregar.' : 'Nenhuma categoria disponível.');
+            focusFirst(el('categories'));
         });
     }
     function playRow(row, type) {
@@ -161,8 +203,8 @@
                     if (source) return startPlayer(source, row, 'series');
                     return message('Esta série não tem episódios nem endereço próprio disponível.');
                 }
-                stack.push({ rows: rows, title: el('title').textContent });
-                rows = episodes.map(function (e) { e._episode = true; return e; }); limit = 60; el('search').value = ''; el('title').textContent = row.name || 'Episódios'; render(); focusFirst(el('items'));
+                stack.push({ rows: rows, title: el('title').textContent, genreFilter: genreFilter });
+                rows = episodes.map(function (e) { e._episode = true; return e; }); limit = 60; el('search').value = ''; el('title').textContent = row.name || 'Episódios'; renderCategories(); render(); focusFirst(el('items'));
             });
         } else if (kind === 'vod') {
             abort(); message('Preparando filme…');
@@ -215,8 +257,10 @@
         abort();
         if (!el('login').hidden) { account = null; el('connect').disabled = false; message('Pronto para conectar.'); return; }
         if (!el('playback').hidden) { stopPlayer(); return; }
-        if (stack.length) { var previous = stack.pop(); rows = previous.rows; el('title').textContent = previous.title; el('search').value = ''; render(); focusFirst(el('items')); }
-        else { rows = []; render(); message('Escolha uma categoria.'); focusFirst(el('categories')); }
+        if (stack.length) { var previous = stack.pop(); rows = previous.rows; genreFilter = previous.genreFilter || 'Todos os gêneros'; el('title').textContent = previous.title; el('search').value = ''; renderCategories(); render(); focusFirst(el('items')); }
+        else if (kind === 'series' && !favoritesView) { genreFilter = 'Todos os gêneros'; renderCategories(); render(); focusFirst(el('categories')); }
+        else if (favoritesView) { loadKind(kind); }
+        else { rows = []; categoryRows = []; searchAll = false; render(); message('Escolha uma categoria.'); focusFirst(el('categories')); }
     }
     el('login-form').onsubmit = function (event) {
         event.preventDefault(); var server = C.origin(el('server').value), user = el('username').value.trim(), secret = el('password').value;
@@ -230,14 +274,58 @@
             saveRemembered(); el('password').value = ''; safeSave('starlink-rebuild-server', server); el('login').hidden = true; el('library').hidden = false; loadKind('live');
         });
     };
-    el('logout').onclick = function () { clearRemembered(); if(remoteKeyboardField)closeKeyboard(); abort(); stopPlayer(); account = null; rows = []; categories = []; favorites = []; saveFavorites(); el('items').textContent = ''; el('categories').textContent = ''; el('library').hidden = true; el('login').hidden = false; el('password').value = ''; el('connect').disabled = false; message('Você saiu da conta.'); el('username').focus(); };
+    el('logout').onclick = function () { searchCache = {}; categoryRows = []; searchAll = false; favoritesView = false; clearRemembered(); if(remoteKeyboardField)closeKeyboard(); abort(); stopPlayer(); account = null; rows = []; categories = []; favorites = []; saveFavorites(); el('items').textContent = ''; el('categories').textContent = ''; el('library').hidden = true; el('login').hidden = false; el('password').value = ''; el('connect').disabled = false; message('Você saiu da conta.'); el('username').focus(); };
     Array.prototype.forEach.call(d.querySelectorAll('[data-kind]'), function (b) { b.onclick = function () { loadKind(b.getAttribute('data-kind')); }; });
     el('keyboard-username').onclick=function(){openKeyboard('username');};
     el('keyboard-password').onclick=function(){openKeyboard('password');};
     el('back').onclick = back; el('stop').onclick = back; el('pause').onclick = pause;
-    el('search').oninput = function () { limit = 60; render(); };
+    function searchAcrossCategories() {
+        var term = el('search').value.replace(/^\\s+|\\s+$/g, '');
+        limit = 60;
+        if (kind === 'series' || favoritesView) { render(); return; }
+        if (!term) {
+            if (searchAll) { rows = categoryRows; searchAll = false; }
+            render(); return;
+        }
+        if (searchAll) { render(); return; }
+        if (searchCache[kind]) {
+            rows = searchCache[kind]; searchAll = true; render(); return;
+        }
+        message('Buscando em todas as categorias…');
+        api(C.types[kind][1], '', '', function (error, data) {
+            if (error) return message(error);
+            if (!Array.isArray(data)) return message('Busca indisponível neste servidor.');
+            searchCache[kind] = data.filter(function (r) {
+                return r && typeof r === 'object' && Number(r.is_adult) !== 1 && Number(r.adult) !== 1;
+            });
+            rows = searchCache[kind]; searchAll = true; render();
+        });
+    }
+    el('search-toggle').onclick = function () {
+        var field = el('search'), toggle = el('search-toggle');
+        if (field.hidden) {
+            field.hidden = false; toggle.setAttribute('aria-expanded', 'true'); field.focus();
+        } else if (field.value) {
+            field.value = ''; searchAcrossCategories(); field.focus();
+        } else {
+            field.hidden = true; toggle.setAttribute('aria-expanded', 'false'); toggle.focus();
+        }
+    };
+    el('search').oninput = function () {
+        limit = 60; w.clearTimeout(searchTimer); searchTimer = w.setTimeout(searchAcrossCategories, 280);
+    };
     el('more').onclick = function () { limit += 60; render(); };
-    el('favorites').onclick = function () { abort(); stack = []; rows = favorites.map(function (f) { return { name: f.row.name || f.row.title, stream_icon: f.row.stream_icon || f.row.cover, _favorite: true, _kind: f.kind, _row: f.row }; }); el('search').value = ''; el('title').textContent = 'Favoritos'; render(); focusFirst(el('items')); };
+    el('favorites').onclick = function () {
+        abort(); favoritesView = true; searchAll = false; stack = [];
+        rows = favorites.map(function (f) {
+            return { name: f.row.name || f.row.title, stream_icon: f.row.stream_icon || f.row.cover,
+                _favorite: true, _kind: f.kind, _row: f.row };
+        });
+        el('search').value = ''; el('title').textContent = 'Favoritos';
+        el('subtitle').textContent = 'Seus favoritos durante esta sessão.';
+        Array.prototype.forEach.call(d.querySelectorAll('#tabs [data-kind]'), function (b) { b.setAttribute('aria-pressed','false'); });
+        renderCategories(); render(); focusFirst(el('items'));
+    };
     el('favorite').onclick = function () {
         if (!current) return; var index = -1; favorites.forEach(function (f, i) { if (f.key === current.key) index = i; });
         if (index >= 0) favorites.splice(index, 1); else { var row = current.row, clean = {}; ['name','title','stream_id','series_id','id','container_extension','stream_icon','cover','_episode'].forEach(function (key) { if (row[key] != null) clean[key] = row[key]; }); favorites.push({ key: current.key, row: clean, kind: current.kind }); }
@@ -282,4 +370,4 @@
     }
     // Favorites are session scoped until a server/account namespace can be verified.
     el('username').focus();
-}(window, document, StarlinkCatalog));
+}(window, document, StarlinkCatalog, StarlinkGenres));
