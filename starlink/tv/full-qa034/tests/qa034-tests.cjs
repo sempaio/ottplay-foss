@@ -3,7 +3,7 @@ const path=require('node:path');
 const {chromium}=require('playwright');
 const url='file:///'+path.resolve(__dirname,'../app/index.html').replace(/\\/g,'/');
 const stubs={
- get_live_categories:[{category_id:'1',category_name:'TV Abertos'}],
+ get_live_categories:[{category_id:'1',category_name:'TV Abertos'},{category_id:'5',category_name:'Esportes'}],
  get_live_streams:[{stream_id:730,name:'Canal M81 Teste',category_id:'1',container_extension:'m3u8'}],
  get_vod_categories:[{category_id:'2',category_name:'Filmes Teste'}],
  get_vod_streams:[{stream_id:20,name:'Filme Teste',category_id:'2',container_extension:'mp4'}],
@@ -26,8 +26,12 @@ const stubs={
    window.webapis={avplay:av};window.__avTest=av;
   });
   await page.route(/player_api\.php/,async route=>{
-    const action=new URL(route.request().url()).searchParams.get('action');
-    const data=stubs[action] || {user_info:{auth:1,status:'Active',exp_date:'0'}};
+    const params=new URL(route.request().url()).searchParams;
+    const action=params.get('action');
+    let data=stubs[action] || {user_info:{auth:1,status:'Active',exp_date:'0'}};
+    if(action==='get_live_streams' && !params.has('category_id')){
+      data=stubs.get_live_streams.concat([{stream_id:731,name:'Canal de Outra Categoria',category_id:'5'}]);
+    }
     await route.fulfill({status:200,contentType:'application/json',
       headers:{'access-control-allow-origin':'*'},body:JSON.stringify(data)});
   });
@@ -134,6 +138,23 @@ const stubs={
   await page.evaluate(()=>window.__avTest.listener.onstreamcompleted());
   assert.equal(await page.locator('#playback').isVisible(),false);
  });
+ await run('busca global encontra canal de outra categoria e mantem o layout original',async page=>{
+  await enter(page);
+  assert.equal(await page.locator('#tabs [data-kind]').count(),3);
+  assert.equal(await page.locator('#search-channels').isVisible(),true);
+  assert.equal(await page.locator('#build').innerText(),'Samsung · reconstrução 0.3.0 QA');
+  await page.locator('#categories button').first().click();
+  await page.getByText('Canal M81 Teste').waitFor({timeout:10000});
+  await page.locator('#search-channels').click();
+  await page.locator('#search').fill('Outra Categoria');
+  await page.getByText('Canal de Outra Categoria').waitFor({timeout:10000});
+  assert.doesNotMatch(await page.locator('#items').innerText(),/Canal M81 Teste/);
+  await page.locator('#search').fill('');
+  await page.getByText('Canal M81 Teste').waitFor({timeout:10000});
+  assert.doesNotMatch(await page.locator('#items').innerText(),/Canal de Outra Categoria/);
+  await page.locator('[data-kind="series"]').click();
+  assert.equal(await page.locator('#search').getAttribute('placeholder'),'Buscar nesta categoria');
+ });
  await browser.close();
- console.log('STARLINK_SAMSUNG_FULL_QA034',ok,'/8');
+ console.log('STARLINK_SAMSUNG_FULL_QA034',ok,'/9');
 })().catch(e=>{console.error(e);process.exit(1);});
