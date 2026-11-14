@@ -1,0 +1,65 @@
+name: Samsung QA034 original + busca canais - ZIP 2APP
+on:
+  push:
+    branches:
+      - fix/samsung-dtv-qa034-busca-canais-20261114
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  qa034-search:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout original QA034 plus isolated change
+        uses: actions/checkout@v4
+      - name: Check syntax and baseline source
+        shell: bash
+        run: |
+          node --check starlink/tv/full-qa034/app/app.js
+          node --check starlink/tv/full-qa034/app/catalog.js
+          test "$(git hash-object starlink/tv/full-qa034/app/app.css)" = "3bd81d10c68142c9a6020cd5e469a4f9f18ab30d"
+          test "$(git hash-object starlink/tv/full-qa034/app/config.xml)" = "0429abaf5fc5b591dedc8864075f8df618bae4c2"
+      - name: Install isolated test tooling
+        shell: bash
+        run: |
+          mkdir -p /tmp/qa034-playwright
+          cd /tmp/qa034-playwright
+          npm install --silent --no-save playwright
+      - name: Run original and global-search browser regression tests
+        env:
+          NODE_PATH: /tmp/qa034-playwright/node_modules
+        run: node starlink/tv/full-qa034/tests/qa034-tests.cjs
+      - name: Package original Tizen app and unsigned WGT
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile, ZIP_DEFLATED
+          import shutil
+          app = Path('starlink/tv/full-qa034/app')
+          out = Path('dist/STARLINK_DTV_QA034_ORIGINAL_BUSCA_2APP')
+          project = out/'PROJETO_TIZEN'
+          shutil.copytree(app, project, dirs_exist_ok=True)
+          with ZipFile(out/'STARLINK_DTV_QA034_BUSCA_NAO_ASSINADO.wgt', 'w', ZIP_DEFLATED) as z:
+              for f in sorted(app.rglob('*')):
+                  if f.is_file(): z.write(f, f.relative_to(app).as_posix())
+          (out/'LEIA_PRIMEIRO.txt').write_text(
+              'STARLINK Samsung QA 0.3.4 ORIGINAL + apenas busca global de canais\\n'
+              'Aparencia, filmes, series, favoritos, login e player da 0.3.4 original preservados.\\n'
+              'Use PROJETO_TIZEN no 2APP para empacotar/assinar.\\n'
+              'O WGT incluído é NAO ASSINADO, nao instale diretamente.\\n'
+              'ID e configuracoes originais foram mantidos, a instalacao final pode substituir o app existente.\\n'
+              'Nao testado em TV fisica.\\n'
+              'Fonte: https://github.com/sempaio/ottplay-foss\\n',
+              encoding='utf-8')
+          print('App files:', [p.name for p in app.iterdir() if p.is_file()])
+          print('WGT bytes:', (out/'STARLINK_DTV_QA034_BUSCA_NAO_ASSINADO.wgt').stat().st_size)
+          PY
+      - name: Publish Samsung 2APP bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: STARLINK-DTV-QA034-ORIGINAL-BUSCA-2APP
+          path: dist/STARLINK_DTV_QA034_ORIGINAL_BUSCA_2APP
+          retention-days: 7
+          if-no-files-found: error
