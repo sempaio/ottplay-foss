@@ -1,0 +1,61 @@
+name: Theater 4 Premium QA 3.4 — WGT sem assinatura
+on:
+  push:
+    branches:
+      - feat/m81-app-01-theater4-premium-qa034-20261114
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build-unsigned-wgt:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Validate unmodified playback and Premium assets
+        run: |
+          node --check starlink/tv/full-qa034/app/app.js
+          node --check starlink/tv/full-qa034/app/catalog.js
+          node --check starlink/tv/full-qa034/app/genres.js
+          node --check starlink/tv/full-qa034/app/premium.js
+          node starlink/tv/full-qa034/tests/qa034-genres-tests.cjs
+          node starlink/tv/full-qa034/tests/premium-smoke.cjs
+      - name: Package WGT without signing
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile, ZIP_DEFLATED, ZipInfo
+          import hashlib, shutil
+          app=Path("starlink/tv/full-qa034/app")
+          target=Path("dist/THEATER4_PREMIUM_QA34_NAO_ASSINADO.wgt")
+          target.parent.mkdir(parents=True,exist_ok=True)
+          with ZipFile(target,"w",ZIP_DEFLATED,compresslevel=9) as z:
+              for f in sorted(app.rglob("*")):
+                  if f.is_file():
+                      rel=f.relative_to(app).as_posix()
+                      z.write(f,rel)
+          with ZipFile(target) as z:
+              assert 'config.xml' in z.namelist()
+              assert 'premium.js' in z.namelist()
+              assert 'premium.css' in z.namelist()
+              assert not any('signature' in x.lower() for x in z.namelist())
+          (target.parent/"LEIA_ANTES.txt").write_text(
+              "THEATER 4 PREMIUM — candidato QA 3.4\\n"
+              "WGT NAO ASSINADO: assine no Tizen Studio ou 2APP com seu certificado Samsung.\\n"
+              "App ID isolado STLTP34001.Theater4 para preservar a QA 3.4 instalada.\\n"
+              "Nao foi testado fisicamente em TV e nao esta homologado.\\n"
+              "AVPlay, login e consultas Xtream originais nao foram alterados.\\n"
+              "Ramo: feat/m81-app-01-theater4-premium-qa034-20261114\\n",
+              encoding="utf-8")
+          print(target.name, target.stat().st_size, hashlib.sha256(target.read_bytes()).hexdigest())
+          PY
+      - name: Upload unsigned WGT
+        uses: actions/upload-artifact@v4
+        with:
+          name: THEATER4-PREMIUM-QA34-WGT-NAO-ASSINADO
+          path: |
+            dist/THEATER4_PREMIUM_QA34_NAO_ASSINADO.wgt
+            dist/LEIA_ANTES.txt
+          if-no-files-found: error
+          retention-days: 14
