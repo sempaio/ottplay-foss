@@ -8,3 +8,72 @@
 #keyboard-grid button{font-size:25px;padding:15px 4px;min-height:59px;background:#14506f;color:white;border:1px solid #3ea8df}
 #keyboard-grid button:focus{outline:4px solid #ff3594;background:#327f9f}
 #keyboard-grid button.command{background:#186b87;font-size:18px}
+
+
+/* M81-APP-01 — QA 0.3.4: layout aprovado para Samsung, sem alterar o player. */
+body { background:linear-gradient(125deg,#020c22 0%,#071b42 58%,#041029 100%); color:#edf7ff; }
+#shell { padding-top:138px; }
+.app-header {
+    position:fixed; top:0; left:0; right:0; z-index:20; height:138px;
+    padding:20px 52px; border-bottom:2px solid #0878b8;
+    background:linear-gradient(90deg,#020b23 0%,#071943 58%,#041229 100%);
+    box-shadow:0 5px 24px rgba(0,129,231,.21);
+}
+.app-header img {height:77px;width:74px;margin-right:18px;filter:drop-shadow(0 0 10px #008dd9)}
+.brand-copy {display:flex;flex-direction:column;gap:6px}
+.brand-copy strong {font-size:36px;white-space:nowrap;letter-spacing:.2px}
+.brand-copy small {color:#eefaff}
+.brand-kicker {color:#62ceff;font-size:18px;font-weight:bold;letter-spacing:1px}
+#build {margin:29px 0 0 22px;align-self:center;font-size:18px;white-space:nowrap;color:#b6dfff}
+#library {padding:24px 65px 10px}
+#tabs {position:fixed;top:37px;right:42px;z-index:35;display:flex;gap:11px;margin:0}
+#tabs button {
+    flex-shrink:0;margin:0;padding:13px 18px;min-height:62px;
+    border:2px solid #078fda;border-radius:13px;
+    background:linear-gradient(180deg,#07376d,#062350);color:#f4fbff;
+    box-shadow:inset 0 0 12px rgba(0,134,255,.13);
+    font-size:22px;font-weight:600;white-space:nowrap
+}
+#tabs button[aria-pressed="true"] {background:linear-gradient(180deg,#07cbf3,#056dbe);border-color:#90f4ff;box-shadow:0 0 20px rgba(0,205,255,.62)}
+#tabs #search-toggle {border-color:#28b9f5;background:#05234a}
+#tabs #logout {margin-left:8px;border-color:#277db7}
+#tabs button:focus,#categories button:focus,.item:focus {outline:4px solid #e5faff;outline-offset:3px;box-shadow:0 0 22px rgba(0,211,255,.9)}
+.toolbar {display:flex;justify-content:space-between;align-items:center;min-height:103px;padding:3px 4px 13px;border-bottom:1px solid #145e99}
+.toolbar-heading h1 {font-size:38px;margin:0 0 6px;font-weight:750;color:#fff}
+.toolbar-heading p {font-size:20px;margin:0;color:#a9d7f5}
+.toolbar-actions {display:flex;align-items:center;gap:12px}
+.toolbar-actions button {font-size:19px;background:#073262;border-color:#0b7cb8;padding:11px 18px}
+.toolbar input {width:460px;margin:0;font-size:20px;padding:13px;border-color:#0ab9ed;background:#081e3f}
+#categories {display:flex;align-items:center;gap:12px;margin:12px 0 13px;padding:9px 0 13px;min-height:74px;scrollbar-width:thin}
+#categories button {
+    flex:0 0 auto;margin:0;border:2px solid #098ecf;border-radius:13px;
+    background:linear-gradient(180deg,#092a56,#061b39);
+    color:#f5faff;font-size:21px;font-weight:600;padding:11px 23px;min-height:55px;
+    box-shadow:inset 0 0 10px rgba(0,115,227,.12)
+}
+#categories button[aria-pressed="true"] {background:linear-gradient(180deg,#04c5ea,#0679c7);border-color:#77f4ff;box-shadow:0 0 16px rgba(0,191,255,.55)}
+#items {display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:13px;align-items:start}
+.item {
+    display:flex;flex-direction:column;width:100%;min-width:0;min-height:225px;
+    height:225px;margin:0;padding:9px;text-align:left;overflow:hidden;
+    border:2px solid #069be8;border-radius:14px;
+    background:linear-gradient(180deg,#07172d 0%,#092750 100%);
+    box-shadow:inset 0 0 13px rgba(0,140,255,.14)
+}
+.item img {display:block;width:100%;height:152px;flex:0 0 152px;object-fit:contain;margin:0 0 7px}
+.item strong {font-size:20px;line-height:1.15;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+.item span {font-size:17px}
+#more {display:block;margin:18px auto;background:#064783;border-color:#27c5fa}
+#status {font-size:19px;color:#9eceeb;min-height:28px;margin:8px 65px}
+body.playing .app-header,body.playing #tabs {visibility:hidden}
+@media(max-width:1500px) {
+ .app-header {padding:18px 28px}
+ .app-header img{width:58px;height:61px;margin-right:11px}
+ .brand-copy strong{font-size:29px}
+ .brand-kicker{font-size:14px}
+ #build{font-size:14px;margin-left:12px}
+ #tabs{right:22px;gap:6px;top:40px}
+ #tabs button{font-size:17px;padding:10px 11px;min-height:54px}
+ #library{padding-left:28px;padding-right:28px}
+ #status{margin-left:28px}
+}
