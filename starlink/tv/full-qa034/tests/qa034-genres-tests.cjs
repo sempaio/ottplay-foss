@@ -1,5 +1,14 @@
 const assert = require('node:assert/strict');
-const Genres = require('../app/genres.js');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const sandbox = {module: {exports: {}}};
+vm.runInNewContext(fs.readFileSync(require('node:path').join(__dirname, '../app/genres.js'),'utf8'), sandbox);
+const api = sandbox.module.exports;
+const Genres = {
+  classify(row) { return JSON.parse(JSON.stringify(api.classify(row))); },
+  options(rows) { return JSON.parse(JSON.stringify(api.options(rows))); },
+  matches(row, genre) { return api.matches(row, genre); }
+};
 
 assert.deepEqual(Genres.classify({ genre: 'Action, Crime, Suspense' }), ['Ação', 'Investigação', 'Suspense']);
 assert.deepEqual(Genres.classify({ genres: ['Drama', 'Comedy', 'Documentary'] }), ['Drama', 'Comédia', 'Documentário']);
