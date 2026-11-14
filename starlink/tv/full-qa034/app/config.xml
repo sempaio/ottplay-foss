@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets" id="https://starlink.local/tv/rebuild" version="0.3.4" viewmodes="maximized">
-<tizen:application id="STLRB00034.StarlinkTV" package="STLRB00034" required_version="5.5"/>
-<content src="index.html"/><name>STARLINK DTV Full QA 0.3.4</name><icon src="icon.png"/>
+<widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets" id="https://theater4.local/tv/premium" version="0.3.4" viewmodes="maximized">
+<tizen:application id="STLTP34001.Theater4" package="STLTP34001" required_version="5.5"/>
+<content src="index.html"/><name>Theater 4 Premium QA 3.4</name><icon src="icon.png"/>
 <tizen:profile name="tv-samsung"/><feature name="http://tizen.org/feature/screen.size.all"/>
 <tizen:privilege name="http://tizen.org/privilege/internet"/><tizen:privilege name="http://tizen.org/privilege/tv.inputdevice"/>
 <tizen:setting screen-orientation="landscape" context-menu="disable" background-support="disable" hwkey-event="enable"/>
