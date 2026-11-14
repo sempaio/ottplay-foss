@@ -3,12 +3,13 @@ const path=require('node:path');
 const {chromium}=require('playwright');
 const url='file:///'+path.resolve(__dirname,'../app/index.html').replace(/\\/g,'/');
 const stubs={
- get_live_categories:[{category_id:'1',category_name:'TV Abertos'}],
+ get_live_categories:[{category_id:'1',category_name:'TV Abertos'},{category_id:'5',category_name:'Esportes'}],
  get_live_streams:[{stream_id:730,name:'Canal M81 Teste',category_id:'1',container_extension:'m3u8'}],
  get_vod_categories:[{category_id:'2',category_name:'Filmes Teste'}],
  get_vod_streams:[{stream_id:20,name:'Filme Teste',category_id:'2',container_extension:'mp4'}],
- get_series_categories:[{category_id:'3',category_name:'Series Teste'}],
- get_series:[{series_id:12,name:'Serie Teste',category_id:'3'}]
+ get_series_categories:[{category_id:'3',category_name:'SÉRIES | CLARO VÍDEO'},{category_id:'7',category_name:'SÉRIES | PLUTOTV'}],
+ get_series:[{series_id:12,name:'Serie Teste',category_id:'3',genre:'Drama, Crime'},
+             {series_id:13,name:'Serie Aventura Teste',category_id:'7',genre:'Action, Adventure'}]
 };
 (async()=>{
  const browser=await chromium.launch({headless:true,channel:'chrome'});
@@ -26,8 +27,12 @@ const stubs={
    window.webapis={avplay:av};window.__avTest=av;
   });
   await page.route(/player_api\.php/,async route=>{
-    const action=new URL(route.request().url()).searchParams.get('action');
-    const data=stubs[action] || {user_info:{auth:1,status:'Active',exp_date:'0'}};
+    const params=new URL(route.request().url()).searchParams;
+     const action=params.get('action');
+     let data=stubs[action] || {user_info:{auth:1,status:'Active',exp_date:'0'}};
+     if(action==='get_live_streams' && !params.has('category_id')){
+       data=stubs.get_live_streams.concat([{stream_id:731,name:'Canal de Outra Categoria',category_id:'5'}]);
+     }
     await route.fulfill({status:200,contentType:'application/json',
       headers:{'access-control-allow-origin':'*'},body:JSON.stringify(data)});
   });
@@ -134,6 +139,46 @@ const stubs={
   await page.evaluate(()=>window.__avTest.listener.onstreamcompleted());
   assert.equal(await page.locator('#playback').isVisible(),false);
  });
+ await run('navegacao fixa e busca disponivel em todas as secoes',async page=>{
+   await enter(page);
+   assert.equal(await page.locator('#tabs [data-kind]').count(),3);
+   assert.equal(await page.locator('#search-toggle').isVisible(),true);
+   assert.equal(await page.locator('#search-toggle').getAttribute('aria-expanded'),'false');
+   const position=await page.locator('#tabs').evaluate(node=>getComputedStyle(node).position);
+   assert.equal(position,'fixed');
+   await page.locator('[data-kind="vod"]').click();
+   assert.equal(await page.locator('#search-toggle').isVisible(),true);
+   await page.locator('[data-kind="series"]').click();
+   assert.equal(await page.locator('#search-toggle').isVisible(),true);
+ });
+ await run('series tem generos horizontais em vez de provedores',async page=>{
+   await enter(page);
+   await page.locator('[data-kind="series"]').click();
+   await page.getByText('Serie Teste').waitFor({timeout:10000});
+   const labels=await page.locator('#categories').innerText();
+   assert.match(labels,/Todos os gêneros/);
+   assert.match(labels,/Investigação/);
+   assert.match(labels,/Ação/);
+   assert.doesNotMatch(labels,/CLARO VÍDEO|PLUTOTV/);
+   await page.getByRole('button',{name:'Ação',exact:true}).click();
+   assert.match(await page.locator('#items').innerText(),/Serie Aventura Teste/);
+   assert.doesNotMatch(await page.locator('#items').innerText(),/Serie Teste/);
+   await page.getByRole('button',{name:'Todos os gêneros',exact:true}).click();
+   assert.equal(await page.locator('#items button').count(),2);
+ });
+ await run('busca global localiza canal fora da categoria selecionada',async page=>{
+   await enter(page);
+   await page.locator('#categories button').first().click();
+   await page.getByText('Canal M81 Teste').waitFor();
+   await page.locator('#search-toggle').click();
+   await page.locator('#search').fill('Outra Categoria');
+   await page.clock.fastForward(400);
+   await page.getByText('Canal de Outra Categoria').waitFor({timeout:10000});
+   assert.doesNotMatch(await page.locator('#items').innerText(),/Canal M81 Teste/);
+   await page.locator('#search').fill('');
+   await page.clock.fastForward(400);
+   await page.getByText('Canal M81 Teste').waitFor({timeout:10000});
+ });
  await browser.close();
- console.log('STARLINK_SAMSUNG_FULL_QA034',ok,'/8');
+ console.log('STARLINK_SAMSUNG_FULL_QA034',ok,'/11');
 })().catch(e=>{console.error(e);process.exit(1);});
