@@ -18,7 +18,8 @@ jobs:
         run: |
           node --check starlink/tv/full-qa034/app/app.js
           node --check starlink/tv/full-qa034/app/catalog.js
-          git diff --exit-code 09c92d44b148dab9f21dde08ab05774cc2c73f0f -- starlink/tv/full-qa034/app/app.css || true
+          test "$(git hash-object starlink/tv/full-qa034/app/app.css)" = "3bd81d10c68142c9a6020cd5e469a4f9f18ab30d"
+          test "$(git hash-object starlink/tv/full-qa034/app/config.xml)" = "0429abaf5fc5b591dedc8864075f8df618bae4c2"
       - name: Install isolated test tooling
         shell: bash
         run: |
