@@ -11,6 +11,13 @@ function updateHero(){
     scheduled=false;
     var first=items.querySelector("button.item"), image=first && first.querySelector("img"), title=d.getElementById("title");
     featured=first;
+    var cards=items.querySelectorAll("button.item");
+    for(var i=0;i<cards.length;i++){
+        if(!cards[i].querySelector("img") && !cards[i].querySelector(".premium-poster-placeholder")){
+            var fallback=d.createElement("div");fallback.className="premium-poster-placeholder";fallback.textContent="▶";
+            cards[i].insertBefore(fallback,cards[i].firstChild);
+        }
+    }
     if(first){
         var name=first.querySelector("strong");
         heading.textContent=name ? name.textContent : "Destaque";
