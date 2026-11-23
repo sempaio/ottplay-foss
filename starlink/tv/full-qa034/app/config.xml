@@ -4,6 +4,7 @@
 <content src="index.html"/><name>STARLINK DTV QA 0.3.6 M81</name><icon src="icon.png"/>
 <tizen:profile name="tv-samsung"/><feature name="http://tizen.org/feature/screen.size.all"/>
 <tizen:privilege name="http://tizen.org/privilege/internet"/><tizen:privilege name="http://tizen.org/privilege/tv.inputdevice"/>
+<tizen:metadata key="http://samsung.com/tv/metadata/auto.update" value="true"/>
 <tizen:setting screen-orientation="landscape" context-menu="disable" background-support="disable" hwkey-event="enable"/>
 <access origin="*" subdomains="true"/>
 <tizen:content-security-policy>default-src 'self'; script-src 'self' http://tizen.org/privilege/ https://tizen.org/privilege/; style-src 'self'; img-src 'self' data: http: https:; connect-src http: https:; media-src http: https: blob:; object-src 'self'; frame-src 'none'</tizen:content-security-policy>
