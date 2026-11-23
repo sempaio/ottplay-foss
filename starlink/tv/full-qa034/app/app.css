@@ -8,3 +8,10 @@
 #keyboard-grid button{font-size:25px;padding:15px 4px;min-height:59px;background:#14506f;color:white;border:1px solid #3ea8df}
 #keyboard-grid button:focus{outline:4px solid #ff3594;background:#327f9f}
 #keyboard-grid button.command{background:#186b87;font-size:18px}
+
+/* QA036: panel notices do not change original Samsung QA034 layout. */
+#remote-notice{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:20000;display:flex;align-items:center;justify-content:center;padding:4vh 5vw}
+#remote-notice-panel{width:100%;max-width:1200px;max-height:86vh;overflow-y:auto;background:#182339;border:3px solid #66d1ff;border-radius:16px;padding:35px 45px;box-shadow:0 12px 55px #000}
+#remote-notice-title{font-size:36px;margin:0 0 24px}
+#remote-notice-body{white-space:pre-wrap;overflow-wrap:anywhere;max-height:49vh;overflow-y:auto;color:#f5f7fb;font-size:27px}
+#remote-notice-dismiss{margin-top:20px}
