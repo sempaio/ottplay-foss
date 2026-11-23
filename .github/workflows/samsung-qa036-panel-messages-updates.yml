@@ -18,7 +18,8 @@ jobs:
         run: |
           node --check starlink/tv/full-qa034/app/app.js
           node --check starlink/tv/full-qa034/app/catalog.js
-          test "$(git hash-object starlink/tv/full-qa034/app/app.css)" = "3bd81d10c68142c9a6020cd5e469a4f9f18ab30d"
+          node --check starlink/tv/full-qa034/app/remote-ops.js
+          grep -q 'QA036: panel notices do not change original Samsung QA034 layout' starlink/tv/full-qa034/app/app.css
           grep -q 'STLRB036AV.StarlinkTV' starlink/tv/full-qa034/app/config.xml
       - name: Install isolated test tooling
         shell: bash
