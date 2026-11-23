@@ -1,0 +1,66 @@
+name: Samsung QA036 panel messages and update checks
+on:
+  push:
+    branches:
+      - feat/starlink-samsung-qa036-pr58-announcements-20261122
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  qa034-avplay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout isolated QA034 Xtream AVPlay candidate
+        uses: actions/checkout@v4
+      - name: Check syntax and baseline source
+        shell: bash
+        run: |
+          node --check starlink/tv/full-qa034/app/app.js
+          node --check starlink/tv/full-qa034/app/catalog.js
+          test "$(git hash-object starlink/tv/full-qa034/app/app.css)" = "3bd81d10c68142c9a6020cd5e469a4f9f18ab30d"
+          grep -q 'STLRB036AV.StarlinkTV' starlink/tv/full-qa034/app/config.xml
+      - name: Install isolated test tooling
+        shell: bash
+        run: |
+          mkdir -p /tmp/qa034-playwright
+          cd /tmp/qa034-playwright
+          npm install --silent --no-save playwright
+      - name: Run 12 original Xtream and AVPlay regressions
+        env:
+          NODE_PATH: /tmp/qa034-playwright/node_modules
+        run: node starlink/tv/full-qa034/tests/qa034-tests.cjs
+          node starlink/tv/full-qa034/tests/qa036-remote-ops-tests.cjs
+      - name: Package original Tizen app and unsigned WGT
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile, ZIP_DEFLATED
+          import shutil
+          app = Path('starlink/tv/full-qa034/app')
+          out = Path('dist/STARLINK_QA036_PANEL_SYNC_2APP')
+          project = out/'PROJETO_TIZEN'
+          shutil.copytree(app, project, dirs_exist_ok=True)
+          with ZipFile(out/'STARLINK_QA036_PANEL_SYNC_NAO_ASSINADO.wgt', 'w', ZIP_DEFLATED) as z:
+              for f in sorted(app.rglob('*')):
+                  if f.is_file(): z.write(f, f.relative_to(app).as_posix())
+          (out/'LEIA_PRIMEIRO.txt').write_text(
+              'STARLINK Samsung QA 0.3.6 CANDIDATO Xtream AVPlay + comunicados e verificacao de versoes\\n'
+              'Aparencia, filmes, series, favoritos e busca preservados; avisos M81 e checagem de versoes em validacao.\\n'
+              'Use PROJETO_TIZEN no 2APP para empacotar/assinar.\\n'
+              'O WGT incluído é NAO ASSINADO, nao instale diretamente.\\n'
+              'ID e versao candidatos exclusivos para NAO substituir a QA034 original.\\n'
+              'Nao testado em TV fisica.\\n'
+              'Fonte: https://github.com/sempaio/ottplay-foss\\n',
+              encoding='utf-8')
+          print('App files:', [p.name for p in app.iterdir() if p.is_file()])
+          print('WGT bytes:', (out/'STARLINK_QA036_PANEL_SYNC_NAO_ASSINADO.wgt').stat().st_size)
+          PY
+      - name: Publish Samsung 2APP bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: STARLINK-QA036-PANEL-SYNC-2APP
+          path: dist/STARLINK_QA036_PANEL_SYNC_2APP
+          retention-days: 7
+          if-no-files-found: error
