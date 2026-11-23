@@ -162,15 +162,19 @@ const stubs={
   assert.equal(await page.locator('#search').getAttribute('placeholder'),'Buscar nesta categoria');
  });
  await run('Xtream media candidate offers HLS fallback only for Xtream live TS',async ()=>{
-  const c=require(path.resolve(__dirname,'../app/catalog.js'));
+  // The repository uses ESM by default, but this app script is a UMD browser
+  // global. Evaluate it as a classic script, as the Samsung WebView does.
+  const fs=require('node:fs'),vm=require('node:vm'),context={};
+  vm.runInNewContext(fs.readFileSync(path.resolve(__dirname,'../app/catalog.js'),'utf8'),context);
+  const c=context.StarlinkCatalog;
   const account={server:'https://panel.example',username:'qa',password:'private'};
-  const generated=c.mediaCandidates(account,'live',{stream_id:42,container_extension:'ts'});
+  const generated=Array.from(c.mediaCandidates(account,'live',{stream_id:42,container_extension:'ts'}));
   assert.deepEqual(generated,[
     'https://panel.example/live/qa/private/42.ts',
     'https://panel.example/live/qa/private/42.m3u8'
   ]);
-  assert.deepEqual(c.mediaCandidates(account,'live',{stream_id:43,container_extension:'ts',direct_source:'https://cdn.example/live.ts'}),['https://cdn.example/live.ts']);
-  assert.deepEqual(c.mediaCandidates(account,'vod',{stream_id:44,container_extension:'mp4'}),['https://panel.example/movie/qa/private/44.mp4']);
+  assert.deepEqual(Array.from(c.mediaCandidates(account,'live',{stream_id:43,container_extension:'ts',direct_source:'https://cdn.example/live.ts'})),['https://cdn.example/live.ts']);
+  assert.deepEqual(Array.from(c.mediaCandidates(account,'vod',{stream_id:44,container_extension:'mp4'})),['https://panel.example/movie/qa/private/44.mp4']);
  });
  await run('AVPlay retries TS once as HLS when Samsung reports unsupported format',async page=>{
   await page.route(/player_api\\.php/,async route=>{
