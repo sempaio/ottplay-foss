@@ -19,10 +19,16 @@ const stubs={
   await page.clock.install();
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.addInitScript(()=>{
-   const av={opened:[],listener:null,state:'IDLE',open(u){this.opened.push(u);},
-    setDisplayRect(){},setListener(x){this.listener=x;},prepareAsync(ok){ok();},
-    play(){this.state='PLAYING';},stop(){this.state='IDLE';},close(){},
-    pause(){this.state='PAUSED';},getState(){return this.state;}};
+   const av={opened:[],listener:null,state:'NONE',
+    open(u){this.opened.push(u);this.state='IDLE';},
+    setDisplayRect(){if(this.state!=='IDLE')throw Error('Display in invalid state');},
+    setListener(x){this.listener=x;},
+    prepareAsync(ok){if(this.state!=='IDLE')throw Error('Prepare in invalid state');this.state='READY';ok();},
+    play(){if(this.state!=='READY'&&this.state!=='PAUSED')throw Error('Play in invalid state');this.state='PLAYING';},
+    stop(){if(this.state==='NONE'||this.state==='IDLE')throw Error('Stop in invalid state');this.state='IDLE';},
+    close(){this.state='NONE';},
+    pause(){if(this.state!=='PLAYING')throw Error('Pause in invalid state');this.state='PAUSED';},
+    getState(){return this.state;}};
    window.webapis={avplay:av};window.__avTest=av;
   });
   await page.route(/player_api\.php/,async route=>{
@@ -155,6 +161,54 @@ const stubs={
   await page.locator('[data-kind="series"]').click();
   assert.equal(await page.locator('#search').getAttribute('placeholder'),'Buscar nesta categoria');
  });
+ await run('Xtream media candidate offers HLS fallback only for Xtream live TS',async ()=>{
+  // The repository uses ESM by default, but this app script is a UMD browser
+  // global. Evaluate it as a classic script, as the Samsung WebView does.
+  const fs=require('node:fs'),vm=require('node:vm'),context={};
+  vm.runInNewContext(fs.readFileSync(path.resolve(__dirname,'../app/catalog.js'),'utf8'),context);
+  const c=context.StarlinkCatalog;
+  const account={server:'https://panel.example',username:'qa',password:'private'};
+  const generated=Array.from(c.mediaCandidates(account,'live',{stream_id:42,container_extension:'ts'}));
+  assert.deepEqual(generated,[
+    'https://panel.example/live/qa/private/42.ts',
+    'https://panel.example/live/qa/private/42.m3u8'
+  ]);
+  assert.deepEqual(Array.from(c.mediaCandidates(account,'live',{stream_id:43,container_extension:'ts',direct_source:'https://cdn.example/live.ts'})),['https://cdn.example/live.ts']);
+  assert.deepEqual(Array.from(c.mediaCandidates(account,'vod',{stream_id:44,container_extension:'mp4'})),['https://panel.example/movie/qa/private/44.mp4']);
+ });
+ await run('AVPlay retries TS once as HLS when Samsung reports unsupported format',async page=>{
+  await page.route(/player_api[.]php/,async route=>{
+    const action=new URL(route.request().url()).searchParams.get('action');
+    if(action!=='get_live_streams')return route.fallback();
+    await route.fulfill({status:200,contentType:'application/json',
+      headers:{'access-control-allow-origin':'*'},
+      body:JSON.stringify([{stream_id:730,name:'Canal M81 Teste',category_id:'1',container_extension:'ts'}])});
+  });
+  await enter(page);
+  await page.locator('#categories button').first().click();
+  await page.locator('#items button').first().click();
+  let urls=await page.evaluate(()=>window.__avTest.opened);
+  assert.equal(urls.length,1);
+  assert.ok(urls[0].endsWith('/730.ts'));
+  await page.evaluate(()=>window.__avTest.listener.onerror('PLAYER_ERROR_NOT_SUPPORTED_FORMAT'));
+  urls=await page.evaluate(()=>window.__avTest.opened);
+  assert.equal(urls.length,2);
+  assert.ok(urls[1].endsWith('/730.m3u8'));
+  await page.evaluate(()=>window.__avTest.listener.onerror('PLAYER_ERROR_NOT_SUPPORTED_FORMAT'));
+  await page.clock.fastForward(40000);
+  assert.equal(await page.evaluate(()=>window.__avTest.opened.length),2);
+  assert.match(await page.locator('#player-status').innerText(),/PLAYER_ERROR_NOT_SUPPORTED_FORMAT/);
+  assert.doesNotMatch(await page.locator('#player-status').innerText(),/qa_password/);
+ });
+ await run('AVPlay unsupported HLS stays stopped without repeated reconnection',async page=>{
+  await enter(page);
+  await page.locator('#categories button').first().click();
+  await page.locator('#items button').first().click();
+  await page.evaluate(()=>window.__avTest.listener.onerror('PLAYER_ERROR_NOT_SUPPORTED_FILE'));
+  await page.clock.fastForward(90000);
+  assert.equal(await page.evaluate(()=>window.__avTest.opened.length),1);
+  assert.match(await page.locator('#player-status').innerText(),/PLAYER_ERROR_NOT_SUPPORTED_FILE/);
+ });
  await browser.close();
- console.log('STARLINK_SAMSUNG_FULL_QA034',ok,'/9');
+ console.log('STARLINK_SAMSUNG_FULL_QA034',ok,'/12');
 })().catch(e=>{console.error(e);process.exit(1);});

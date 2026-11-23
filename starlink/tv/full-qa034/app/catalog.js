@@ -26,6 +26,22 @@
         if (!/^[a-zA-Z0-9]{1,10}$/.test(ext)) return '';
         return account.server + '/' + types[kind][2] + '/' + encodeURIComponent(account.username) + '/' + encodeURIComponent(account.password) + '/' + id + '.' + ext;
     }
+    // Keep direct streams untouched. Some Xtream servers publish live TS but
+    // accept an HLS rendition at the same stream id; Samsung AVPlay can try it
+    // once after an explicit unsupported-format error. No M3U import is used.
+    function mediaCandidates(account, kind, row) {
+        var first = media(account, kind, row);
+        if (!first) return [];
+        var candidates = [first];
+        if (kind !== 'live' || http(row.direct_source || row.stream_url || row.url)) return candidates;
+        if (String(row.container_extension || 'm3u8').toLowerCase() !== 'ts') return candidates;
+        var hls = {};
+        Object.keys(row).forEach(function (key) { hls[key] = row[key]; });
+        hls.container_extension = 'm3u8';
+        var alternative = media(account, kind, hls);
+        if (alternative && alternative !== first) candidates.push(alternative);
+        return candidates;
+    }
     function episodes(data) {
         var groups = data && data.episodes, result = [];
         if (!groups || typeof groups !== 'object') return result;
@@ -41,5 +57,5 @@
         });
         return result;
     }
-    return { types: types, origin: origin, http: http, query: query, media: media, episodes: episodes };
+    return { types: types, origin: origin, http: http, query: query, media: media, mediaCandidates: mediaCandidates, episodes: episodes };
 }));

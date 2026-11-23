@@ -73,12 +73,12 @@
     }
     w.setInterval(function(){
         if(el('playback').hidden || !activeStream || activeStream.type!=='live' ||
-           activeStream.paused || d.hidden) return;
+           activeStream.paused || activeStream.terminal || d.hidden) return;
         var limit=activeStream.retryCount>=3?60000:(activeStream.seenProgress?15000:30000);
         if(Date.now()-activeStream.lastAdvanceAt<limit)return;
         var state=activeStream;
         playerMessage('Reconectando o mesmo canal...');
-        startPlayer(state.url,state.row,state.type,Math.min(3,state.retryCount+1));
+        startPlayer(state.url,state.row,state.type,Math.min(3,state.retryCount+1),state.fallbackUrl);
     },1000);
     function abort() { generation += 1; pending.forEach(function (x) { x.abort(); }); pending = []; }
     function api(action, key, id, done) {
@@ -153,9 +153,9 @@
         });
     }
     function playRow(row, type) {
-        var url = C.media(account, type, row);
-        if (!url) return message('Este conteúdo ainda não tem um endereço de reprodução válido.');
-        startPlayer(url, row, type);
+        var urls = C.mediaCandidates(account, type, row);
+        if (!urls.length) return message('Este conteúdo ainda não tem um endereço de reprodução válido.');
+        startPlayer(urls[0], row, type, 0, urls[1] || '');
     }
     function open(row) {
         if (row._favorite) { kind = row._kind; open(row._row); return; }
@@ -188,26 +188,75 @@
         playerGeneration += 1;
         activeStream = null;
         if (hls) { hls.destroy(); hls = null; }
-        if (av) { try { av.stop(); } catch (_) {} try { av.close(); } catch (_) {} av = null; }
+        if (av) {
+            try {
+                var state = av.getState();
+                if (state === 'READY' || state === 'PLAYING' || state === 'PAUSED') av.stop();
+            } catch (_) {}
+            try { av.close(); } catch (_) {}
+            av = null;
+        }
         var video = el('video'); video.pause(); video.removeAttribute('src'); video.load();
         el('playback').hidden = true; d.body.classList.remove('playing');
         if (lastFocus && d.body.contains(lastFocus)) lastFocus.focus();
     }
-    function startPlayer(url, row, type, retryCount) {
+    function startPlayer(url, row, type, retryCount, fallbackUrl) {
         stopPlayer(); lastFocus = d.activeElement; var owner = playerGeneration;
-        activeStream = {url:url,row:row,type:type,retryCount:retryCount||0,
-            lastPosition:null,lastAdvanceAt:Date.now(),healthySince:0,seenProgress:!!retryCount,paused:false};
+        activeStream = {url:url,row:row,type:type,retryCount:retryCount||0,fallbackUrl:fallbackUrl||'',
+            lastPosition:null,lastAdvanceAt:Date.now(),healthySince:0,seenProgress:!!retryCount,paused:false,terminal:false};
         current = { row: row, kind: type, key: favoriteKey(row, type) };
         el('playback').hidden = false; d.body.classList.add('playing'); el('playing-title').textContent = row.name || row.title || 'Reproduzir conteúdo'; el('playtime').textContent = '';
         playerMessage('Conectando ao conteúdo…'); el('stop').focus();
         el('favorite').textContent = favorites.some(function (f) { return f.key === current.key; }) ? '★ Favorito' : '☆ Favoritar';
+        function nativeFailure(errorType, allowAlternate) {
+            if (owner !== playerGeneration || !activeStream) return;
+            // Show Samsung's documented error code, never the media URL or credentials.
+            var code = typeof errorType === 'string' && /^PLAYER_ERROR_[A-Z_]{1,45}$/.test(errorType) ?
+                errorType : 'PLAYER_ERROR_UNKNOWN';
+            var unsupported = /NOT_SUPPORTED_(FILE|FORMAT)|INVALID_(URI|PARAMETER)/.test(code);
+            if (allowAlternate && (unsupported || code === 'PLAYER_ERROR_PREPARE_FAILED') &&
+                activeStream.fallbackUrl) {
+                var alternative = activeStream.fallbackUrl;
+                playerMessage('Formato TS rejeitado: tentando HLS na mesma conta Xtream…');
+                startPlayer(alternative, row, type, retryCount, '');
+                return;
+            }
+            activeStream.terminal = unsupported || code === 'PLAYER_ERROR_PREPARE_FAILED' ||
+                code === 'PLAYER_ERROR_INVALID_OPERATION' || code === 'PLAYER_ERROR_INVALID_STATE';
+            playerMessage('Falha AVPlay (' + code + '). Confira a compatibilidade do canal com esta TV.');
+        }
         if (w.webapis && w.webapis.avplay) {
             av = w.webapis.avplay; el('video').hidden = true; el('avplayer').hidden = false;
             try {
-                av.open(url); av.setDisplayRect(0, 0, 1920, 1080);
-                av.setListener({ onbufferingstart: function () { if (owner === playerGeneration) playerMessage('Carregando vídeo…'); }, oncurrentplaytime: function (time) { if (owner === playerGeneration) { el('playtime').textContent = Math.floor(time / 1000) + ' s'; recordProgress(time); playerMessage(''); } }, onstreamcompleted: function () { if (owner !== playerGeneration) return; if (type === 'live') { playerMessage('Canal interrompido; aguardando reconexao automatica.'); } else stopPlayer(); }, onerror: function () { if (owner === playerGeneration) playerMessage('Não foi possível reproduzir este conteúdo na TV. Volte e tente outro.'); } });
-                av.prepareAsync(function () { if (owner !== playerGeneration || !av) return; try { av.play(); } catch (_) { playerMessage('Não foi possível iniciar o vídeo.'); } }, function () { if (owner === playerGeneration) playerMessage('O formato ou o endereço do vídeo não pôde ser aberto.'); });
-            } catch (_) { playerMessage('O player Samsung não conseguiu abrir este vídeo.'); }
+                av.open(url);
+                av.setListener({
+                    onbufferingstart: function () { if (owner === playerGeneration) playerMessage('Carregando vídeo…'); },
+                    onbufferingcomplete: function () { if (owner === playerGeneration) playerMessage(''); },
+                    oncurrentplaytime: function (time) {
+                        if (owner === playerGeneration && typeof time === 'number' && isFinite(time)) {
+                            el('playtime').textContent = Math.floor(time / 1000) + ' s';
+                            recordProgress(time);
+                            playerMessage('');
+                        }
+                    },
+                    onstreamcompleted: function () {
+                        if (owner !== playerGeneration) return;
+                        if (type === 'live') playerMessage('Canal interrompido; aguardando reconexão automática.');
+                        else stopPlayer();
+                    },
+                    onerror: function (code) { nativeFailure(code, true); }
+                });
+                av.setDisplayRect(0, 0, 1920, 1080);
+                av.prepareAsync(function () {
+                    if (owner !== playerGeneration || !av) return;
+                    try { av.play(); }
+                    catch (_) { nativeFailure('PLAYER_ERROR_INVALID_STATE', false); }
+                }, function () { nativeFailure('PLAYER_ERROR_PREPARE_FAILED', true); });
+            } catch (_) { nativeFailure('PLAYER_ERROR_INVALID_OPERATION', true); }
+        } else if (w.tizen) {
+            // On a real Samsung never pretend that HTML5 is the native player.
+            if (activeStream) activeStream.terminal = true;
+            playerMessage('AVPlay indisponível. Confira as bibliotecas Samsung e o pacote Tizen.');
         } else {
             var video = el('video'); video.hidden = false; el('avplayer').hidden = true;
             video.onplaying = function () { if (owner === playerGeneration) playerMessage(''); };
