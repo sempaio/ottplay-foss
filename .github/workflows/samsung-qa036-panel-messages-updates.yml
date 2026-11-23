@@ -30,7 +30,8 @@ jobs:
       - name: Run 12 original Xtream and AVPlay regressions
         env:
           NODE_PATH: /tmp/qa034-playwright/node_modules
-        run: node starlink/tv/full-qa034/tests/qa034-tests.cjs
+        run: |
+          node starlink/tv/full-qa034/tests/qa034-tests.cjs
           node starlink/tv/full-qa034/tests/qa036-remote-ops-tests.cjs
       - name: Package original Tizen app and unsigned WGT
         shell: bash
