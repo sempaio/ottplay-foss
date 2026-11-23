@@ -177,7 +177,7 @@ const stubs={
   assert.deepEqual(Array.from(c.mediaCandidates(account,'vod',{stream_id:44,container_extension:'mp4'})),['https://panel.example/movie/qa/private/44.mp4']);
  });
  await run('AVPlay retries TS once as HLS when Samsung reports unsupported format',async page=>{
-  await page.route(/player_api\\.php/,async route=>{
+  await page.route(/player_api[.]php/,async route=>{
     const action=new URL(route.request().url()).searchParams.get('action');
     if(action!=='get_live_streams')return route.fallback();
     await route.fulfill({status:200,contentType:'application/json',
