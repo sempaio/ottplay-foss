@@ -3,9 +3,40 @@
     var account = null, kind = 'live', rows = [], categories = [], category = '', stack = [], limit = 60;
     var generation = 0, pending = [], playerGeneration = 0, av = null, hls = null, current = null, lastFocus = null, favorites = [], activeStream = null;
     var channelSearchCache = null, channelSearchMode = false, channelCategoryRows = [], channelSearchTimer = null, channelSearchPending = false, channelSearchFavorites = false, focusChannelSearch = false;
+    var panelNotices = [], panelNoticeShowing = false, panelNoticeFocus = null, remoteOps = null;
     function el(id) { return d.getElementById(id); }
     function message(text) { el('status').textContent = text; }
     function playerMessage(text) { el('player-status').textContent = text; }
+    function showPanelNotice() {
+        if (panelNoticeShowing || !panelNotices.length || !el('playback').hidden || !el('login').hidden) return;
+        var item = panelNotices.shift();
+        panelNoticeShowing = true;
+        panelNoticeFocus = d.activeElement;
+        el('remote-notice-title').textContent = item.title;
+        el('remote-notice-body').textContent = item.message;
+        el('remote-notice').hidden = false;
+        el('remote-notice-dismiss').focus();
+    }
+    function closePanelNotice() {
+        if (!panelNoticeShowing) return;
+        panelNoticeShowing = false;
+        el('remote-notice').hidden = true;
+        if (panelNoticeFocus && d.body.contains(panelNoticeFocus)) panelNoticeFocus.focus();
+        panelNoticeFocus = null;
+        w.setTimeout(showPanelNotice, 0);
+    }
+    function enqueuePanelNotice(item) {
+        if (!item || !item.title || !item.message) return;
+        panelNotices.push(item);
+        showPanelNotice();
+    }
+    function stopPanelOps() {
+        if (remoteOps) remoteOps.stop();
+        panelNotices = [];
+        panelNoticeShowing = false;
+        panelNoticeFocus = null;
+        el('remote-notice').hidden = true;
+    }
     function safeRead(key, fallback) { try { return JSON.parse(w.localStorage.getItem(key)) || fallback; } catch (_) { return fallback; } }
     function safeSave(key, value) { try { w.localStorage.setItem(key, JSON.stringify(value)); return true; } catch (_) { return false; } }
 
@@ -199,6 +230,7 @@
         var video = el('video'); video.pause(); video.removeAttribute('src'); video.load();
         el('playback').hidden = true; d.body.classList.remove('playing');
         if (lastFocus && d.body.contains(lastFocus)) lastFocus.focus();
+        w.setTimeout(showPanelNotice, 0);
     }
     function startPlayer(url, row, type, retryCount, fallbackUrl) {
         stopPlayer(); lastFocus = d.activeElement; var owner = playerGeneration;
@@ -269,6 +301,7 @@
         try { if (av) { if (av.getState() === 'PLAYING') { av.pause(); if(activeStream)activeStream.paused=true; } else if (av.getState() === 'PAUSED') { av.play(); if(activeStream){activeStream.paused=false;activeStream.lastAdvanceAt=Date.now();} } } else { var v = el('video'); if (v.paused) { if(activeStream){activeStream.paused=false;activeStream.lastAdvanceAt=Date.now();} var p = v.play(); if (p && p.catch) p.catch(function () { playerMessage('Não foi possível continuar o vídeo.'); }); } else { v.pause(); if(activeStream)activeStream.paused=true; } } } catch (_) { playerMessage('Não foi possível controlar a reprodução.'); }
     }
     function back() {
+        if (panelNoticeShowing) { closePanelNotice(); return; }
         abort(); w.clearTimeout(channelSearchTimer); channelSearchPending = false;
         if (!el('login').hidden) { account = null; el('connect').disabled = false; message('Pronto para conectar.'); return; }
         if (!el('playback').hidden) { stopPlayer(); return; }
@@ -289,14 +322,15 @@
             if (error) { account = null; clearRemembered(); return message(error); }
             var u = data && data.user_info;
             if (!u || String(u.auth) !== '1' || String(u.status || '').toLowerCase() !== 'active' || (Number(u.exp_date) > 0 && Number(u.exp_date) * 1000 <= Date.now())) { account = null; clearRemembered(); return message('Conta recusada, inativa ou vencida. Confira os dados.'); }
-            saveRemembered(); el('password').value = ''; safeSave('starlink-rebuild-server', server); el('login').hidden = true; el('library').hidden = false; loadKind('live');
+            saveRemembered(); el('password').value = ''; safeSave('starlink-rebuild-server', server); el('login').hidden = true; el('library').hidden = false; loadKind('live'); if (remoteOps) remoteOps.start();
         });
     };
-    el('logout').onclick = function () { resetChannelSearchView(); channelSearchCache = null; clearRemembered(); if(remoteKeyboardField)closeKeyboard(); abort(); stopPlayer(); account = null; rows = []; categories = []; favorites = []; saveFavorites(); el('items').textContent = ''; el('categories').textContent = ''; el('library').hidden = true; el('login').hidden = false; el('password').value = ''; el('connect').disabled = false; message('Você saiu da conta.'); el('username').focus(); };
+    el('logout').onclick = function () { stopPanelOps(); resetChannelSearchView(); channelSearchCache = null; clearRemembered(); if(remoteKeyboardField)closeKeyboard(); abort(); stopPlayer(); account = null; rows = []; categories = []; favorites = []; saveFavorites(); el('items').textContent = ''; el('categories').textContent = ''; el('library').hidden = true; el('login').hidden = false; el('password').value = ''; el('connect').disabled = false; message('Você saiu da conta.'); el('username').focus(); };
     Array.prototype.forEach.call(d.querySelectorAll('[data-kind]'), function (b) { b.onclick = function () { loadKind(b.getAttribute('data-kind')); }; });
     el('keyboard-username').onclick=function(){openKeyboard('username');};
     el('keyboard-password').onclick=function(){openKeyboard('password');};
     el('back').onclick = back; el('stop').onclick = back; el('pause').onclick = pause;
+    el('remote-notice-dismiss').onclick = closePanelNotice;
     function searchLiveChannels() {
         var term = el('search').value.replace(/^\s+|\s+$/g, '');
         limit = 60;
@@ -340,10 +374,18 @@
         if (!saveFavorites()) playerMessage('Não foi possível salvar os favoritos nesta TV.');
         el('favorite').textContent = index >= 0 ? '☆ Favoritar' : '★ Favorito';
     };
-    d.addEventListener('visibilitychange', function () { if (d.hidden) { abort(); stopPlayer(); } });
+    d.addEventListener('visibilitychange', function () {
+        if (d.hidden) { abort(); stopPlayer(); }
+        else if (remoteOps) remoteOps.check();
+    });
     w.addEventListener('pagehide', function () { abort(); stopPlayer(); });
     d.addEventListener('keydown', function (event) {
         var key = event.keyCode;
+        if (panelNoticeShowing) {
+            if (key === 13 || key === 10009 || key === 27 || key === 413) closePanelNotice();
+            event.preventDefault();
+            return;
+        }
         if(!el('remote-keyboard').hidden){
             if(key===10009||key===27||key===413){event.preventDefault();closeKeyboard();return;}
             var keys=el('keyboard-grid').querySelectorAll('button'),index=-1;
@@ -369,6 +411,13 @@
         event.preventDefault(); if (best) { best.focus(); best.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }
     });
     try { ['MediaPlayPause','MediaPlay','MediaPause','MediaStop'].forEach(function (key) { w.tizen.tvinputdevice.registerKey(key); }); } catch (_) {}
+    if (w.StarlinkRemoteOps) remoteOps = w.StarlinkRemoteOps.create({
+        base: 'https://panel.taila5c5c2.ts.net',
+        packageId: 'STLRB036AV',
+        version: '0.3.6',
+        canCheck: function () { return !!account && el('login').hidden && !d.hidden; },
+        onNotice: enqueuePanelNotice
+    });
     el('server').value = safeRead('starlink-rebuild-server', 'https://panel.taila5c5c2.ts.net');
     var saved=remembered();
     if(saved) {
